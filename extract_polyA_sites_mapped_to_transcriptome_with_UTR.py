@@ -168,7 +168,7 @@ def main():
                         filename=args.log, filemode='w')
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(levellevel)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
@@ -208,7 +208,7 @@ def main():
         'WT_Count': len(wt_sites),
         'MUT_Count': len(mut_sites),
         'WT_Mean': np.mean(wt_sites),
-        'MUT_Mean': np.mean(wt_sites),
+        'MUT_Mean': np.mean(mut_sites),
         'WT_Median': np.median(wt_sites),
         'MUT_Median': np.median(wt_sites),
         'WT_Std': np.std(wt_sites),
