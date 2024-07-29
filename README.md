@@ -15,14 +15,24 @@ This project provides scripts for extracting poly(A) sites from nanopore direct 
 - `scipy` (for statistical tests)
 - `statsmodels` (for multiple testing correction)
 - `nose2` (for running unit tests)
+- `biopython` for the transcriptome approach 
 
 You can install the required Python packages using `pip`:
 
 ```bash
-pip install pysam pandas scipy statsmodels nose2
+pip install pysam pandas scipy statsmodels nose2 biopython
+```
+
+## unit test
+in the parent directory run
+
+```bash
+nose2
 ```
 
 ## file structure
+
+```bash
 
 .
 ├── identify_polyA
@@ -34,7 +44,53 @@ pip install pysam pandas scipy statsmodels nose2
 │   ├── test_extract_stop_codon_positions.py
 ├── README.md
 
+```
+### transcritpome approach (genome version is NOT WORKING YET!)
 
+```
+python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py \
+    --bam <BAM_FILES> \
+    --fasta <FASTA_FILE> \
+    --reference_transcript <REFERENCE_TRANSCRIPT_FILE> \
+    --groups <GROUP_NAMES> \
+    --output <OUTPUT_PREFIX>
+
+```
+
+Arguments
+--bam: List of BAM files to be parsed (e.g., --bam file1.bam file2.bam file3.bam).
+--fasta: FASTA file of the reference genome.
+--reference_transcript: FASTA file of the reference transcripts with UTR.
+--groups: List of group names corresponding to BAM files (e.g., --groups WT WT WT MUT MUT MUT).
+--output: Output prefix for the generated TSV files.
+--polyA_length: Minimum length of poly(A) tail to consider (default: 10).
+--fdr: False discovery rate threshold for multiple testing correction (default: 0.05).
+--log: Log file to store the logging information (default: script.log).
+
+Output
+The script generates two main output files:
+
+WT_<output_prefix>.tsv: Poly(A) site information for the WT group.
+MUT_<output_prefix>.tsv: Poly(A) site information for the MUT group.
+significant_<output_prefix>.tsv: Significant transcripts with different poly(A) site locations between WT and MUT groups after FDR correction.
+Each TSV file contains the following columns:
+
+Read_Name: Name of the read.
+TranscriptID: Identifier of the transcript.
+Genomic_Coordinate: Genomic coordinate of the poly(A) site.
+PolyA_Start: Start position of the poly(A) tail.
+PolyA_Length: Length of the poly(A) tail.
+Pre_PolyA_Sequence_From_Read: Sequence preceding the poly(A) site from the RNAseq read.
+Pre_PolyA_Sequence_From_Ref: Sequence preceding the poly(A) site from the reference genome.
+Distance_to_Stop: Distance from the poly(A) site to the stop codon.
+Statistical Analysis
+The script performs statistical analysis to compare poly(A) site distributions between WT and MUT groups. It uses the Mann-Whitney U test for the comparison and applies FDR correction for multiple testing. The results are saved in the significant_<output_prefix>.tsv file.
+
+Logging
+The script logs its progress and important information to a log file specified by the --log argument (default: script.log). The log file contains details about the processing of BAM files, the number of poly(A) sites extracted, and the results of statistical tests.
+
+
+# Genome version (not yet working)
 
 ### Scripts Description
 1. identify_polyA/parse_gtf.py
