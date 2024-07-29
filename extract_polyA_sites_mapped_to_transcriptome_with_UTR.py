@@ -96,31 +96,34 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
     for read in bam.fetch():
         if not read.is_unmapped:
             seq = read.query_sequence
-            match = re.search(r'(A{' + str(polyA_length) + ',})$', seq)
+            transcript_id = read.reference_name
 
-            if match:
-                read_name = read.query_name
-                polyA_start = read.reference_start + match.start()
-                polyA_length = len(match.group(0))
-                transcript_id = read.reference_name
-                chrom = read.reference_name
-                coordinate = read.reference_start + match.start()
+            if transcript_id not in reference_transcripts:
+                continue
 
-                if transcript_id not in reference_transcripts:
-                    continue
+            ref_seq = fasta[transcript_id].seq
+            reference_transcript = reference_transcripts[transcript_id]
+            stop_codon_position = find_stop_codon_position(ref_seq, reference_transcript)
 
-                ref_seq = fasta[transcript_id].seq
-                reference_transcript = reference_transcripts[transcript_id]
-                stop_codon_position = find_stop_codon_position(ref_seq, reference_transcript)
-                distance_to_stop = coordinate - stop_codon_position
+            # Only consider poly(A) sites after the stop codon
+            if read.reference_start >= stop_codon_position:
+                match = re.search(r'(A{' + str(polyA_length) + ',})$', seq)
+                if match:
+                    read_name = read.query_name
+                    polyA_start = read.reference_start + match.start()
+                    polyA_length = len(match.group(0))
+                    chrom = read.reference_name
+                    coordinate = read.reference_start + match.start()
 
-                # Sequence from RNAseq read
-                pre_polyA_seq_from_read = seq[match.start() - distance_to_stop:match.start()]
+                    distance_to_stop = coordinate - stop_codon_position
 
-                # Sequence from reference genome
-                pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
+                    # Sequence from RNAseq read
+                    pre_polyA_seq_from_read = seq[match.start() - distance_to_stop:match.start()]
 
-                polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length, pre_polyA_seq_from_read, pre_polyA_seq_from_ref, distance_to_stop])
+                    # Sequence from reference genome
+                    pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
+
+                    polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length, pre_polyA_seq_from_read, pre_polyA_seq_from_ref, distance_to_stop])
 
     logging.info(f"Extracted {len(polyA_sites)} poly(A) sites from {bam_file}")
     return polyA_sites
@@ -156,11 +159,11 @@ def main():
     args = get_args()
 
     # Setup logging to file and console
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', 
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levellevel)s - %(message)s', 
                         filename=args.log, filemode='w')
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levellevel)s - %(message)s')
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
