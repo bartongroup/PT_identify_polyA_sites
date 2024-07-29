@@ -40,6 +40,18 @@ def get_args():
                           type=str,
                           help="List of group names corresponding to BAM files e.g. --groups WT WT WT MUT MUT MUT")
 
+    optional.add_argument("--reference_transcript", dest='reference_transcript',
+                          action="store",
+                          type=str,
+                          required=True,
+                          help="Reference transcript sequence from start to stop codon e.g. --reference_transcript ATG...TAA")
+
+    optional.add_argument("--polyA_length", dest='polyA_length',
+                          action="store",
+                          type=int,
+                          default=10,
+                          help="Minimum length of poly(A) tail to consider")
+
     optional.add_argument("--fdr", dest='fdr',
                           action="store",
                           type=float,
@@ -57,18 +69,19 @@ def get_args():
 
     return parser.parse_args()
 
-def extract_polyA_sites(bam_file, fasta_file, group):
+def extract_polyA_sites(bam_file, fasta_file, reference_transcript, polyA_length, group):
     logging.info(f"Processing file: {bam_file} as {group}")
     bam = pysam.AlignmentFile(bam_file, "rb")
     fasta = pysam.FastaFile(fasta_file)
-    
+
     polyA_sites = []
+    ref_transcript_length = len(reference_transcript)
 
     for read in bam.fetch():
         if not read.is_unmapped:
             seq = read.query_sequence
-            match = re.search(r'(A{10,})$', seq)
-            
+            match = re.search(r'(A{' + str(polyA_length) + ',})$', seq)
+
             if match:
                 read_name = read.query_name
                 polyA_start = read.reference_start + match.start()
@@ -76,16 +89,16 @@ def extract_polyA_sites(bam_file, fasta_file, group):
                 transcript_id = read.reference_name
                 chrom = read.reference_name
                 coordinate = read.reference_start + match.start()
-                
-                if coordinate >= 20:
-                    region_start = coordinate - 20
-                    region_end = coordinate
-                    pre_polyA_seq = fasta.fetch(chrom, region_start, region_end)
+
+                distance_to_stop = ref_transcript_length - coordinate
+
+                if distance_to_stop > 0:
+                    pre_polyA_seq = fasta.fetch(chrom, coordinate, coordinate + distance_to_stop)
                 else:
-                    pre_polyA_seq = fasta.fetch(chrom, 0, coordinate)
-                
-                polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length, pre_polyA_seq])
-    
+                    pre_polyA_seq = ""
+
+                polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length, pre_polyA_seq, distance_to_stop])
+
     logging.info(f"Extracted {len(polyA_sites)} poly(A) sites from {bam_file}")
     return polyA_sites
 
@@ -96,8 +109,8 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
     logging.info(f"Total transcripts found: {len(all_transcripts)}")
 
     for transcript_id in all_transcripts:
-        wt_sites = [site[2] for site in polyA_data['WT'] if site[1] == transcript_id]
-        mut_sites = [site[2] for site in polyA_data['MUT'] if site[1] == transcript_id]
+        wt_sites = [site[6] for site in polyA_data['WT'] if site[1] == transcript_id]
+        mut_sites = [site[6] for site in polyA_data['MUT'] if site[1] == transcript_id]
 
         if len(wt_sites) > 1 and len(mut_sites) > 1:
             u_statistic, p_value = mannwhitneyu(wt_sites, mut_sites, alternative='two-sided')
@@ -118,7 +131,7 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
 
 def main():
     args = get_args()
-    
+
     # Setup logging to file and console
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', 
                         filename=args.log, filemode='w')
@@ -131,13 +144,14 @@ def main():
     polyA_data = {'WT': [], 'MUT': []}
 
     for bam_file, group in zip(args.bam, args.groups):
-        polyA_sites = extract_polyA_sites(bam_file, args.fasta, group)
+        polyA_sites = extract_polyA_sites(bam_file, args.fasta, args.reference_transcript, args.polyA_length, group)
         polyA_data[group].extend(polyA_sites)
 
     # Convert results to DataFrame
-    polyA_df_wt = pd.DataFrame(polyA_data['WT'], columns=['Read_Name', 'TranscriptID', 'Genomic_Coordinate', 'PolyA_Start', 'PolyA_Length', 'Pre_PolyA_Sequence'])
-    polyA_df_mut = pd.DataFrame(polyA_data['MUT'], columns=['Read_Name', 'TranscriptID', 'Genomic_Coordinate', 'PolyA_Start', 'PolyA_Length', 'Pre_PolyA_Sequence'])
-    
+    columns = ['Read_Name', 'TranscriptID', 'Genomic_Coordinate', 'PolyA_Start', 'PolyA_Length', 'Pre_PolyA_Sequence', 'Distance_to_Stop']
+    polyA_df_wt = pd.DataFrame(polyA_data['WT'], columns=columns)
+    polyA_df_mut = pd.DataFrame(polyA_data['MUT'], columns=columns)
+
     # Save to TSV
     polyA_df_wt.to_csv(f"WT_{args.output}", sep='\t', index=False)
     polyA_df_mut.to_csv(f"MUT_{args.output}", sep='\t', index=False)
@@ -145,8 +159,8 @@ def main():
 
     # Perform global statistical comparison of poly(A) site locations
     logging.info("Starting global statistical analysis of poly(A) site locations")
-    wt_sites = polyA_df_wt['Genomic_Coordinate'].values
-    mut_sites = polyA_df_mut['Genomic_Coordinate'].values
+    wt_sites = polyA_df_wt['Distance_to_Stop'].values
+    mut_sites = polyA_df_mut['Distance_to_Stop'].values
 
     w_distance = wasserstein_distance(wt_sites, mut_sites)
     logging.info(f"Wasserstein distance between WT and MUT poly(A) sites: {w_distance}")
