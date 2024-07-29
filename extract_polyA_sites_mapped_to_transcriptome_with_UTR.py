@@ -115,7 +115,7 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                 distance_to_stop = coordinate - stop_codon_position
 
                 # Sequence from RNAseq read
-                pre_polyA_seq_from_read = seq[:match.start()]
+                pre_polyA_seq_from_read = seq[match.start() - distance_to_stop:match.start()]
 
                 # Sequence from reference genome
                 pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
