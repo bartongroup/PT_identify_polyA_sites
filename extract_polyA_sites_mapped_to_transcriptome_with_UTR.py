@@ -99,11 +99,16 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
             transcript_id = read.reference_name
 
             if transcript_id not in reference_transcripts:
+                logging.warning(f"Transcript ID {transcript_id} not found in reference transcripts.")
                 continue
 
             ref_seq = fasta[transcript_id].seq
             reference_transcript = reference_transcripts[transcript_id]
-            stop_codon_position = find_stop_codon_position(ref_seq, reference_transcript)
+            try:
+                stop_codon_position = find_stop_codon_position(ref_seq, reference_transcript)
+            except ValueError as e:
+                logging.warning(e)
+                continue
 
             # Only consider poly(A) sites after the stop codon
             if read.reference_start >= stop_codon_position:
@@ -159,7 +164,7 @@ def main():
     args = get_args()
 
     # Setup logging to file and console
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levellevel)s - %(message)s', 
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', 
                         filename=args.log, filemode='w')
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
@@ -203,11 +208,11 @@ def main():
         'WT_Count': len(wt_sites),
         'MUT_Count': len(mut_sites),
         'WT_Mean': np.mean(wt_sites),
-        'MUT_Mean': np.mean(mut_sites),
+        'MUT_Mean': np.mean(wt_sites),
         'WT_Median': np.median(wt_sites),
-        'MUT_Median': np.median(mut_sites),
+        'MUT_Median': np.median(wt_sites),
         'WT_Std': np.std(wt_sites),
-        'MUT_Std': np.std(mut_sites)
+        'MUT_Std': np.std(wt_sites)
     }
 
     logging.info(f"Summary Statistics: {summary_stats}")
