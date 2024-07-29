@@ -9,6 +9,7 @@ import logging
 from statsmodels.stats.multitest import multipletests
 from identify_polyA.parse_gtf import parse_gff_gft
 from identify_polyA.extract_stop_codon_positions import extract_stop_codon_positions
+from identify_polyA.extract_polyA_sites import extract_polyA_sites
 
 def get_args():
     """
@@ -28,6 +29,7 @@ def get_args():
                           action="store",
                           nargs='+',
                           required=True,
+                          default=["test_data/test.bam"],
                           type=str,
                           help="List of BAM files to be parsed e.g. --bam file1.bam file2.bam file3.bam")
 
@@ -41,12 +43,14 @@ def get_args():
                           action="store",
                           type=str,
                           required=True,
+                          default="data/test.geome.fasta",
                           help="FASTA file of the reference genome")
 
     optional.add_argument("--gtf", dest='gtf',
                           action="store",
                           type=str,
                           required=True,
+                          default="data/test.gtf",
                           help="GTF file with genomic annotations")
 
     optional.add_argument("--groups", dest='groups',
@@ -55,6 +59,12 @@ def get_args():
                           required=True,
                           type=str,
                           help="List of group names corresponding to BAM files e.g. --groups WT WT WT MUT MUT MUT")
+
+    optional.add_argument("--min_polya_length", dest='min_polya_length',
+                          action="store",
+                          type=int,
+                          default=10,
+                          help="Minimum length of the poly(A) tail to be considered (default: 10)")
 
     optional.add_argument("--fdr", dest='fdr',
                           action="store",
@@ -72,76 +82,6 @@ def get_args():
                           help="Show this help message and exit")
 
     return parser.parse_args()
-
-
-def extract_polyA_sites(bam_file, fasta_file, stop_codons, group):
-    """
-    Extract poly(A) sites from the BAM file and calculate distances from stop codons.
-
-    Args:
-        bam_file (str): Path to the BAM file.
-        fasta_file (str): Path to the reference genome FASTA file.
-        stop_codons (dict): Dictionary of stop codon positions and strands.
-        group (str): Sample group (e.g., WT or MUT).
-
-    Returns:
-        list: A list of poly(A) site information.
-    """
-    logging.info(f"Processing file: {bam_file} as {group}")
-    bam = pysam.AlignmentFile(bam_file, "rb")
-    fasta = pysam.FastaFile(fasta_file)
-    
-    polyA_sites = []
-    read_count = 0
-    matched_read_count = 0
-
-    for read in bam.fetch():
-        read_count += 1
-        if not read.is_unmapped:
-            seq = read.query_sequence
-            logging.debug(f"Read {read.query_name}: Sequence length = {len(seq)}")
-
-            if not isinstance(seq, str):
-                seq = str(seq)
-            match = re.search(r'(A{10,})$', seq)
-            
-            if match:
-                matched_read_count += 1
-                read_name = read.query_name
-                polyA_start = read.reference_start + match.start()
-                polyA_length = len(match.group(0))
-                transcript_id = read.reference_name
-                chrom = read.reference_name
-                coordinate = read.reference_start + match.start()
-                
-                if coordinate >= 20:
-                    region_start = coordinate - 20
-                    region_end = coordinate
-                    try:
-                        pre_polyA_seq = fasta.fetch(chrom, region_start, region_end)
-                    except KeyError:
-                        logging.error(f"Chromosome '{chrom}' not found in FASTA file.")
-                        continue
-                else:
-                    try:
-                        pre_polyA_seq = fasta.fetch(chrom, 0, coordinate)
-                    except KeyError:
-                        logging.error(f"Chromosome '{chrom}' not found in FASTA file.")
-                        continue
-
-                stop_codon_info = stop_codons.get(transcript_id, None)
-                if stop_codon_info:
-                    stop_codon_pos, strand = stop_codon_info
-                    if strand == '+':
-                        distance_from_stop = coordinate - stop_codon_pos
-                    else:
-                        distance_from_stop = stop_codon_pos - coordinate
-                    polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length, pre_polyA_seq, distance_from_stop])
-    
-    logging.info(f"Processed {read_count} reads and found {matched_read_count} reads with poly(A) tails.")
-    logging.info(f"Extracted {len(polyA_sites)} poly(A) sites from {bam_file}")
-    return polyA_sites
-
 
 def perform_statistical_analysis(polyA_data, fdr_threshold):
     """
@@ -201,11 +141,11 @@ def main():
     polyA_data = {'WT': [], 'MUT': []}
 
     for bam_file, group in zip(args.bam, args.groups):
-        polyA_sites = extract_polyA_sites(bam_file, args.fasta, stop_codons, group)
+        polyA_sites = extract_polyA_sites(bam_file, args.fasta, stop_codons, group, args.min_polya_length)
         polyA_data[group].extend(polyA_sites)
 
     # Convert results to DataFrame
-    columns = ['Read_Name', 'TranscriptID', 'Genomic_Coordinate', 'PolyA_Start', 'PolyA_Length', 'Pre_PolyA_Sequence', 'Distance_From_Stop']
+    columns = ['Read_Name', 'TranscriptID', 'Genomic_Coordinate', 'PolyA_Start', 'PolyA_Length', 'Pre_PolyA_Sequence', 'Distance_From_Stop', 'Reverse_Complement']
     polyA_df_wt = pd.DataFrame(polyA_data['WT'], columns=columns)
     polyA_df_mut = pd.DataFrame(polyA_data['MUT'], columns=columns)
     

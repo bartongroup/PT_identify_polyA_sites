@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+import re
+import pysam
+import logging
+from Bio.Seq import Seq
+
+def calculate_genomic_coordinate(read, polyA_start_in_read):
+    """
+    Calculate the genomic coordinate of the poly(A) start site considering the CIGAR string.
+
+    Args:
+        read (pysam.AlignedSegment): The aligned read.
+        polyA_start_in_read (int): The start position of the poly(A) tail within the read.
+
+    Returns:
+        int: The genomic coordinate of the poly(A) start site.
+    """
+    genomic_coordinate = read.reference_start
+    read_pos = 0
+
+    for operation, length in read.cigartuples:
+        if operation in {0, 2, 3}:  # M (alignment match), D (deletion), N (skipped region)
+            if read_pos + length > polyA_start_in_read:
+                genomic_coordinate += (polyA_start_in_read - read_pos)
+                break
+            genomic_coordinate += length
+        if operation in {0, 1, 4, 5}:  # M (alignment match), I (insertion), S (soft clipping), H (hard clipping)
+            read_pos += length
+
+    return genomic_coordinate
+
+
+def extract_polyA_sites(bam_file, fasta_file, stop_codons, group, min_polya_length=10):
+    """
+    Extract poly(A) sites from the BAM file and calculate distances from stop codons.
+
+    Args:
+        bam_file (str): Path to the BAM file.
+        fasta_file (str): Path to the reference genome FASTA file.
+        stop_codons (dict): Dictionary of stop codon positions and strands.
+        group (str): Sample group (e.g., WT or MUT).
+        min_polya_length (int): Minimum length of the poly(A) tail to be considered.
+
+    Returns:
+        list: A list of poly(A) site information.
+    """
+    logging.info(f"Processing file: {bam_file} as {group}")
+    bam = pysam.AlignmentFile(bam_file, "rb")
+    fasta = pysam.FastaFile(fasta_file)
+    
+    polyA_sites = []
+    read_count = 0
+    matched_read_count = 0
+    polyA_pattern = f"(A{{{min_polya_length},}})$"
+
+    for read in bam.fetch():
+        read_count += 1
+        if not read.is_unmapped:
+            seq = read.query_sequence
+            if not isinstance(seq, str):
+                seq = str(seq)
+            match = re.search(polyA_pattern, seq)
+            
+            if match:
+                matched_read_count += 1
+                read_name = read.query_name
+                polyA_start_in_read = match.start()
+                polyA_length = len(match.group(0))
+                transcript_id = read.reference_name
+                chrom = read.reference_name
+
+                # Calculate the genomic coordinate considering the CIGAR string
+                coordinate = calculate_genomic_coordinate(read, polyA_start_in_read)
+
+                stop_codon_info = stop_codons.get(transcript_id, None)
+                if stop_codon_info:
+                    stop_codon_pos, strand = stop_codon_info
+                    if strand == '+':
+                        distance_from_stop = coordinate - stop_codon_pos
+                        region_start = min(stop_codon_pos, coordinate)
+                        region_end = max(stop_codon_pos, coordinate)
+                        reverse_complement = False
+                    else:
+                        distance_from_stop = stop_codon_pos - coordinate
+                        region_start = min(coordinate, stop_codon_pos)
+                        region_end = max(coordinate, stop_codon_pos)
+                        reverse_complement = True
+
+                    # Fetch the sequence from the stop codon to the poly(A) site
+                    try:
+                        pre_polyA_seq = fasta.fetch(chrom, region_start, region_end)
+                        if reverse_complement:
+                            pre_polyA_seq = str(Seq(pre_polyA_seq).reverse_complement())
+                    except KeyError:
+                        logging.error(f"Chromosome '{chrom}' not found in FASTA file.")
+                        continue
+
+                    polyA_sites.append([read_name, transcript_id, coordinate, polyA_start_in_read, polyA_length, pre_polyA_seq, distance_from_stop, reverse_complement])
+    
+    logging.info(f"Processed {read_count} reads and found {matched_read_count} reads with poly(A) tails.")
+    logging.info(f"Extracted {len(polyA_sites)} poly(A) sites from {bam_file}")
+    return polyA_sites
+
+

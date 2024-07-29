@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+import os
+from identify_polyA.parse_gtf import parse_gff_gft
+import re
+
 def extract_stop_codon_positions(gtf_file):
     """
     Extract stop codon positions from the GTF file.

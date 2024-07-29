@@ -1,6 +1,7 @@
 import os
 import unittest
 from identify_polyA.extract_stop_codon_positions import extract_stop_codon_positions
+import re
 
 class TestExtractStopCodonPositions(unittest.TestCase):
 
