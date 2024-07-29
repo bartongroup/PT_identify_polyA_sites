@@ -7,6 +7,7 @@ from scipy.stats import wasserstein_distance, mannwhitneyu
 import numpy as np
 import logging
 from statsmodels.stats.multitest import multipletests
+from Bio import SeqIO
 
 def get_args():
     parser = argparse.ArgumentParser(description="Extract poly(A) sites from nanopore direct RNAseq data",
@@ -33,18 +34,18 @@ def get_args():
                           required=True,
                           help="FASTA file of the reference genome")
 
+    optional.add_argument("--reference_transcript", dest='reference_transcript',
+                          action="store",
+                          type=str,
+                          required=True,
+                          help="FASTA file of the reference transcripts with UTR")
+
     optional.add_argument("--groups", dest='groups',
                           action="store",
                           nargs='+',
                           required=True,
                           type=str,
                           help="List of group names corresponding to BAM files e.g. --groups WT WT WT MUT MUT MUT")
-
-    optional.add_argument("--reference_transcript", dest='reference_transcript',
-                          action="store",
-                          type=str,
-                          required=True,
-                          help="Reference transcript sequence from start to stop codon e.g. --reference_transcript ATG...TAA")
 
     optional.add_argument("--polyA_length", dest='polyA_length',
                           action="store",
@@ -69,22 +70,27 @@ def get_args():
 
     return parser.parse_args()
 
-def find_stop_codon_position(fasta_file, transcript_id, reference_transcript):
-    fasta = pysam.FastaFile(fasta_file)
-    ref_seq = fasta.fetch(transcript_id)
+def index_reference_transcripts(reference_transcript_file):
+    reference_transcripts = SeqIO.to_dict(SeqIO.parse(reference_transcript_file, "fasta"))
+    return reference_transcripts
+
+def find_stop_codon_position(ref_seq, reference_transcript):
+    ref_seq_str = str(ref_seq)
+    reference_transcript_str = str(reference_transcript.seq)
     
-    match_start = ref_seq.find(reference_transcript)
+    match_start = ref_seq_str.find(reference_transcript_str)
     if match_start == -1:
-        raise ValueError(f"Reference transcript not found in the sequence for {transcript_id}")
+        raise ValueError(f"Reference transcript not found in the sequence for {reference_transcript.id}")
 
     # Stop codon position is the end of the matched sequence
-    stop_codon_position = match_start + len(reference_transcript)
+    stop_codon_position = match_start + len(reference_transcript_str)
     return stop_codon_position
 
-def extract_polyA_sites(bam_file, fasta_file, reference_transcript, polyA_length, group):
+def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_length, group):
     logging.info(f"Processing file: {bam_file} as {group}")
     bam = pysam.AlignmentFile(bam_file, "rb")
-    
+    fasta = SeqIO.to_dict(SeqIO.parse(fasta_file, "fasta"))
+
     polyA_sites = []
 
     for read in bam.fetch():
@@ -100,14 +106,19 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcript, polyA_length
                 chrom = read.reference_name
                 coordinate = read.reference_start + match.start()
 
-                stop_codon_position = find_stop_codon_position(fasta_file, transcript_id, reference_transcript)
+                if transcript_id not in reference_transcripts:
+                    continue
+
+                ref_seq = fasta[transcript_id].seq
+                reference_transcript = reference_transcripts[transcript_id]
+                stop_codon_position = find_stop_codon_position(ref_seq, reference_transcript)
                 distance_to_stop = coordinate - stop_codon_position
 
                 # Sequence from RNAseq read
                 pre_polyA_seq_from_read = seq[:match.start()]
 
                 # Sequence from reference genome
-                pre_polyA_seq_from_ref = fasta.fetch(chrom, stop_codon_position, coordinate) if distance_to_stop > 0 else ""
+                pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
 
                 polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length, pre_polyA_seq_from_read, pre_polyA_seq_from_ref, distance_to_stop])
 
@@ -155,8 +166,11 @@ def main():
 
     polyA_data = {'WT': [], 'MUT': []}
 
+    # Index the reference transcripts
+    reference_transcripts = index_reference_transcripts(args.reference_transcript)
+
     for bam_file, group in zip(args.bam, args.groups):
-        polyA_sites = extract_polyA_sites(bam_file, args.fasta, args.reference_transcript, args.polyA_length, group)
+        polyA_sites = extract_polyA_sites(bam_file, args.fasta, reference_transcripts, args.polyA_length, group)
         polyA_data[group].extend(polyA_sites)
 
     # Convert results to DataFrame
