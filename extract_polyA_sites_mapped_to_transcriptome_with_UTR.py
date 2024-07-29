@@ -69,13 +69,29 @@ def get_args():
 
     return parser.parse_args()
 
+
+def find_stop_codon_position(fasta_file, transcript_id, reference_transcript):
+    fasta = pysam.FastaFile(fasta_file)
+    ref_seq = fasta.fetch(transcript_id)
+    
+    match = ref_seq.find(reference_transcript)
+    if match == -1:
+        raise ValueError(f"Reference transcript not found in the sequence for {transcript_id}")
+
+    stop_codons = ['TAA', 'TAG', 'TGA']
+    for codon in stop_codons:
+        position = reference_transcript.find(codon)
+        if position != -1:
+            return match + position + 3  # +3 to include the stop codon itself
+
+    raise ValueError(f"No stop codon found in the reference transcript for {transcript_id}")
+
+
 def extract_polyA_sites(bam_file, fasta_file, reference_transcript, polyA_length, group):
     logging.info(f"Processing file: {bam_file} as {group}")
     bam = pysam.AlignmentFile(bam_file, "rb")
-    fasta = pysam.FastaFile(fasta_file)
-
+    
     polyA_sites = []
-    ref_transcript_length = len(reference_transcript)
 
     for read in bam.fetch():
         if not read.is_unmapped:
@@ -90,12 +106,10 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcript, polyA_length
                 chrom = read.reference_name
                 coordinate = read.reference_start + match.start()
 
-                distance_to_stop = ref_transcript_length - coordinate
+                stop_codon_position = find_stop_codon_position(fasta_file, transcript_id, reference_transcript)
+                distance_to_stop = coordinate - stop_codon_position
 
-                if distance_to_stop > 0:
-                    pre_polyA_seq = fasta.fetch(chrom, coordinate, coordinate + distance_to_stop)
-                else:
-                    pre_polyA_seq = ""
+                pre_polyA_seq = fasta.fetch(chrom, stop_codon_position, coordinate)
 
                 polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length, pre_polyA_seq, distance_to_stop])
 
