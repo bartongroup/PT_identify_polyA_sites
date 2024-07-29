@@ -103,9 +103,13 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcript, polyA_length
                 stop_codon_position = find_stop_codon_position(fasta_file, transcript_id, reference_transcript)
                 distance_to_stop = coordinate - stop_codon_position
 
-                pre_polyA_seq = fasta.fetch(chrom, stop_codon_position, coordinate)
+                # Sequence from RNAseq read
+                pre_polyA_seq_from_read = seq[:match.start()]
 
-                polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length, pre_polyA_seq, distance_to_stop])
+                # Sequence from reference genome
+                pre_polyA_seq_from_ref = fasta.fetch(chrom, stop_codon_position, coordinate) if distance_to_stop > 0 else ""
+
+                polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length, pre_polyA_seq_from_read, pre_polyA_seq_from_ref, distance_to_stop])
 
     logging.info(f"Extracted {len(polyA_sites)} poly(A) sites from {bam_file}")
     return polyA_sites
@@ -117,8 +121,8 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
     logging.info(f"Total transcripts found: {len(all_transcripts)}")
 
     for transcript_id in all_transcripts:
-        wt_sites = [site[6] for site in polyA_data['WT'] if site[1] == transcript_id]
-        mut_sites = [site[6] for site in polyA_data['MUT'] if site[1] == transcript_id]
+        wt_sites = [site[7] for site in polyA_data['WT'] if site[1] == transcript_id]
+        mut_sites = [site[7] for site in polyA_data['MUT'] if site[1] == transcript_id]
 
         if len(wt_sites) > 1 and len(mut_sites) > 1:
             u_statistic, p_value = mannwhitneyu(wt_sites, mut_sites, alternative='two-sided')
@@ -141,11 +145,11 @@ def main():
     args = get_args()
 
     # Setup logging to file and console
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levellevel)s - %(message)s', 
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', 
                         filename=args.log, filemode='w')
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(levellevel)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
@@ -156,7 +160,7 @@ def main():
         polyA_data[group].extend(polyA_sites)
 
     # Convert results to DataFrame
-    columns = ['Read_Name', 'TranscriptID', 'Genomic_Coordinate', 'PolyA_Start', 'PolyA_Length', 'Pre_PolyA_Sequence', 'Distance_to_Stop']
+    columns = ['Read_Name', 'TranscriptID', 'Genomic_Coordinate', 'PolyA_Start', 'PolyA_Length', 'Pre_PolyA_Sequence_From_Read', 'Pre_PolyA_Sequence_From_Ref', 'Distance_to_Stop']
     polyA_df_wt = pd.DataFrame(polyA_data['WT'], columns=columns)
     polyA_df_mut = pd.DataFrame(polyA_data['MUT'], columns=columns)
 
