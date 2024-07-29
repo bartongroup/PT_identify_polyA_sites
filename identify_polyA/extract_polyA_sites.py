@@ -1,34 +1,7 @@
-#!/usr/bin/env python3
 import re
 import pysam
 import logging
 from Bio.Seq import Seq
-
-def calculate_genomic_coordinate(read, polyA_start_in_read):
-    """
-    Calculate the genomic coordinate of the poly(A) start site considering the CIGAR string.
-
-    Args:
-        read (pysam.AlignedSegment): The aligned read.
-        polyA_start_in_read (int): The start position of the poly(A) tail within the read.
-
-    Returns:
-        int: The genomic coordinate of the poly(A) start site.
-    """
-    genomic_coordinate = read.reference_start
-    read_pos = 0
-
-    for operation, length in read.cigartuples:
-        if operation in {0, 2, 3}:  # M (alignment match), D (deletion), N (skipped region)
-            if read_pos + length > polyA_start_in_read:
-                genomic_coordinate += (polyA_start_in_read - read_pos)
-                break
-            genomic_coordinate += length
-        if operation in {0, 1, 4, 5}:  # M (alignment match), I (insertion), S (soft clipping), H (hard clipping)
-            read_pos += length
-
-    return genomic_coordinate
-
 
 def extract_polyA_sites(bam_file, fasta_file, stop_codons, group, min_polya_length=10):
     """
@@ -62,6 +35,7 @@ def extract_polyA_sites(bam_file, fasta_file, stop_codons, group, min_polya_leng
             match = re.search(polyA_pattern, seq)
             
             if match:
+                print("match = ", match)
                 matched_read_count += 1
                 read_name = read.query_name
                 polyA_start_in_read = match.start()
@@ -102,3 +76,44 @@ def extract_polyA_sites(bam_file, fasta_file, stop_codons, group, min_polya_leng
     return polyA_sites
 
 
+
+
+def calculate_genomic_coordinate(read, polyA_start_in_read):
+    """
+    Calculate the genomic coordinate of the poly(A) start site considering the CIGAR string.
+
+    Args:
+        read (pysam.AlignedSegment): The aligned read.
+        polyA_start_in_read (int): The start position of the poly(A) tail within the read.
+
+    Returns:
+        int: The genomic coordinate of the poly(A) start site.
+    """
+    genomic_coordinate = read.reference_start
+    read_pos = 0
+
+    for operation, length in read.cigartuples:
+        print(f"CIGAR Operation: {operation}, Length: {length}")
+        
+        if operation == 0:  # M (alignment match)
+            if read_pos + length > polyA_start_in_read:
+                genomic_coordinate += (polyA_start_in_read - read_pos)
+                print(f"Final genomic coordinate: {genomic_coordinate}")
+                return genomic_coordinate
+            genomic_coordinate += length
+            read_pos += length
+        elif operation == 2:  # D (deletion)
+            genomic_coordinate += length
+        elif operation == 3:  # N (skipped region)
+            genomic_coordinate += length
+        elif operation == 1:  # I (insertion)
+            read_pos += length
+        elif operation == 4:  # S (soft clipping)
+            read_pos += length
+        elif operation == 5:  # H (hard clipping)
+            # Hard clipping does not consume read bases, so no change
+            pass
+    
+    # If the polyA start is not found within the CIGAR operations
+    print(f"Final genomic coordinate after loop: {genomic_coordinate}")
+    return genomic_coordinate

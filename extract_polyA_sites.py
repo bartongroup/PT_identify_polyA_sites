@@ -121,9 +121,6 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
     return significant_results
 
 def main():
-    """
-    Main function to orchestrate the extraction and analysis of poly(A) sites.
-    """
     args = get_args()
     
     # Setup logging to file and console
