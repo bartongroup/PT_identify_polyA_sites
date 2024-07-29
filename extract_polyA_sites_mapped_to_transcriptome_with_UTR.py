@@ -69,23 +69,17 @@ def get_args():
 
     return parser.parse_args()
 
-
 def find_stop_codon_position(fasta_file, transcript_id, reference_transcript):
     fasta = pysam.FastaFile(fasta_file)
     ref_seq = fasta.fetch(transcript_id)
     
-    match = ref_seq.find(reference_transcript)
-    if match == -1:
+    match_start = ref_seq.find(reference_transcript)
+    if match_start == -1:
         raise ValueError(f"Reference transcript not found in the sequence for {transcript_id}")
 
-    stop_codons = ['TAA', 'TAG', 'TGA']
-    for codon in stop_codons:
-        position = reference_transcript.find(codon)
-        if position != -1:
-            return match + position + 3  # +3 to include the stop codon itself
-
-    raise ValueError(f"No stop codon found in the reference transcript for {transcript_id}")
-
+    # Stop codon position is the end of the matched sequence
+    stop_codon_position = match_start + len(reference_transcript)
+    return stop_codon_position
 
 def extract_polyA_sites(bam_file, fasta_file, reference_transcript, polyA_length, group):
     logging.info(f"Processing file: {bam_file} as {group}")
@@ -147,11 +141,11 @@ def main():
     args = get_args()
 
     # Setup logging to file and console
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', 
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levellevel)s - %(message)s', 
                         filename=args.log, filemode='w')
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levellevel)s - %(message)s')
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
