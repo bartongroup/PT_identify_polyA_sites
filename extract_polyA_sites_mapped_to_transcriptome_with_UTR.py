@@ -131,7 +131,7 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                 continue
 
             ref_seq = fasta[transcript_id].seq
-            print(fasta[transcript_id])
+            #print(fasta[transcript_id])
             reference_transcript = reference_transcripts[transcript_id]
             try:
                 stop_codon_position = find_stop_codon_position(ref_seq, reference_transcript)
@@ -147,10 +147,26 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                 if not isinstance(seq, str):
                     logging.warning(f"Read {read.query_name} sequence is not a string. Type: {type(seq)}")
                     continue
-                match = re.search(r'(A{' + str(polyA_length) + ',})$', seq)
+
+                match = re.search(r'(A{' + str(polyA_length) + ',})', seq)
                 print(match)
+                read_name = read.query_name
+                if not "AT1" in transcript_id:
+                    print("transcript_id", transcript_id, stop_codon_position, seq)
+                    if "AAAAAA" in seq:
+                        print("HHHEEERRREEE")
+                print(read.query_name)
+
                 if match:
-                    read_name = read.query_name
+                    start_pos = match.start()
+                    logging.debug(f"PolyA site found: {match.group()} at position {start_pos} in read {read.query_name}")
+                    polyA_sites.append((read.query_name, transcript_id, read.reference_start + start_pos, match.group()))
+                else:
+                    logging.debug(f"No PolyA site found in read {read_name}")
+                if "AAAAAA" in seq:
+                    logging.debug(f"Sequence contains 'AAAAAA': {seq}")
+                if match:
+                    
                     polyA_start = read.reference_start + match.start()
                     polyA_length = len(match.group(0))
                     chrom = read.reference_name

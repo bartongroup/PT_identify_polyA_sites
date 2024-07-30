@@ -134,7 +134,8 @@ python scripts/extract_polyA_sites.py --bam file1.bam file2.bam file3.bam --outp
 
 
 ## Map the FASTA sequences to the reference and convert to BAM directly
-minimap2 -a transcript_with_UTR.fa reads.fa | samtools view -b -o tmp.bam
+minimap2 -a -x sr -k 7 -w 1 -A 1 -B 2 -O 2,16 -E 4,1 -s 40 --secondary=no \
+transcript_with_UTR.fa reads.fa | samtools view -b -o tmp.bam
 
 ## Sort the BAM file
 samtools sort -o test.bam tmp.bam
