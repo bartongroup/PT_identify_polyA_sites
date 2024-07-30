@@ -124,3 +124,26 @@ Example Usage
 ```bash
 python scripts/extract_polyA_sites.py --bam file1.bam file2.bam file3.bam --output polyA_sites.tsv --fasta reference.fasta --gtf annotations.gtf --groups WT WT WT MUT MUT MUT --fdr 0.05 --log script.log
 ```
+
+
+
+
+
+
+# Generating the test files
+
+
+## Map the FASTA sequences to the reference and convert to BAM directly
+minimap2 -a transcript_with_UTR.fa reads.fa | samtools view -b -o tmp.bam
+
+## Sort the BAM file
+samtools sort -o test.bam tmp.bam
+
+## Index the sorted BAM file
+samtools index test.bam
+
+testing command
+```bash
+python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py --bam transcriptome_tests/test.bam --reference_transcript transcriptome_tests/transcript.fa --fasta transcriptome_tests/transcript_with_UTR.fa --group WT --output output.test
+
+```

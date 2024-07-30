@@ -50,7 +50,7 @@ def get_args():
     optional.add_argument("--polyA_length", dest='polyA_length',
                           action="store",
                           type=int,
-                          default=10,
+                          default=7,
                           help="Minimum length of poly(A) tail to consider")
 
     optional.add_argument("--fdr", dest='fdr',
@@ -77,7 +77,9 @@ def index_reference_transcripts(reference_transcript_file):
 def find_stop_codon_position(ref_seq, reference_transcript):
     ref_seq_str = str(ref_seq)
     reference_transcript_str = str(reference_transcript.seq)
-    
+    # for testing
+    # if reference_transcript_str.startswith("ATGCGCGCGCGCCGCCGCCGCCGCCG"):
+    #     print(ref_seq_str, reference_transcript_str)
     match_start = ref_seq_str.find(reference_transcript_str)
     if match_start == -1:
         raise ValueError(f"Reference transcript not found in the sequence for {reference_transcript.id}")
@@ -86,7 +88,33 @@ def find_stop_codon_position(ref_seq, reference_transcript):
     stop_codon_position = match_start + len(reference_transcript_str)
     return stop_codon_position
 
+
 def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_length, group):
+    """
+    Extract poly(A) sites from a BAM file.
+
+    This function processes a BAM file to identify and extract poly(A) sites that are mapped
+    to transcriptome sequences. It filters reads to only consider poly(A) sites located after
+    the stop codon of the reference transcripts.
+
+    Parameters:
+    bam_file (str): Path to the BAM file to be processed.
+    fasta_file (str): Path to the FASTA file containing reference genome sequences.
+    reference_transcripts (dict): Dictionary of reference transcripts indexed by transcript ID.
+    polyA_length (int): Minimum length of poly(A) tail to consider.
+    group (str): Group name (e.g., 'WT' or 'MUT') associated with the BAM file.
+
+    Returns:
+    list: A list of lists where each inner list contains the following information about a poly(A) site:
+        - read_name (str): Name of the read.
+        - transcript_id (str): Transcript ID.
+        - coordinate (int): Genomic coordinate of the poly(A) site.
+        - polyA_start (int): Start position of the poly(A) site within the read.
+        - polyA_length (int): Length of the poly(A) tail.
+        - pre_polyA_seq_from_read (str): Sequence preceding the poly(A) tail from the read.
+        - pre_polyA_seq_from_ref (str): Sequence preceding the poly(A) tail from the reference genome.
+        - distance_to_stop (int): Distance from the poly(A) site to the stop codon.
+    """
     logging.info(f"Processing file: {bam_file} as {group}")
     bam = pysam.AlignmentFile(bam_file, "rb")
     fasta = SeqIO.to_dict(SeqIO.parse(fasta_file, "fasta"))
@@ -103,6 +131,7 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                 continue
 
             ref_seq = fasta[transcript_id].seq
+            print(fasta[transcript_id])
             reference_transcript = reference_transcripts[transcript_id]
             try:
                 stop_codon_position = find_stop_codon_position(ref_seq, reference_transcript)
@@ -111,8 +140,15 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                 continue
 
             # Only consider poly(A) sites after the stop codon
-            if read.reference_start >= stop_codon_position:
+            if read.reference_start < stop_codon_position:
+                if seq is None:
+                    logging.warning(f"Read {read.query_name} has no sequence.")
+                    continue
+                if not isinstance(seq, str):
+                    logging.warning(f"Read {read.query_name} sequence is not a string. Type: {type(seq)}")
+                    continue
                 match = re.search(r'(A{' + str(polyA_length) + ',})$', seq)
+                print(match)
                 if match:
                     read_name = read.query_name
                     polyA_start = read.reference_start + match.start()
@@ -132,6 +168,7 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
 
     logging.info(f"Extracted {len(polyA_sites)} poly(A) sites from {bam_file}")
     return polyA_sites
+
 
 def perform_statistical_analysis(polyA_data, fdr_threshold):
     results = []
