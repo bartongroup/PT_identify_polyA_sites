@@ -89,6 +89,7 @@ def find_stop_codon_position(ref_seq, reference_transcript):
     return stop_codon_position
 
 
+
 def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_length, group):
     """
     Extract poly(A) sites from a BAM file.
@@ -131,7 +132,6 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                 continue
 
             ref_seq = fasta[transcript_id].seq
-            #print(fasta[transcript_id])
             reference_transcript = reference_transcripts[transcript_id]
             try:
                 stop_codon_position = find_stop_codon_position(ref_seq, reference_transcript)
@@ -149,41 +149,30 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                     continue
 
                 match = re.search(r'(A{' + str(polyA_length) + ',})', seq)
-                print(match)
-                read_name = read.query_name
-                if not "AT1" in transcript_id:
-                    print("transcript_id", transcript_id, stop_codon_position, seq)
-                    if "AAAAAA" in seq:
-                        print("HHHEEERRREEE")
-                print(read.query_name)
-
                 if match:
                     start_pos = match.start()
-                    logging.debug(f"PolyA site found: {match.group()} at position {start_pos} in read {read.query_name}")
-                    polyA_sites.append((read.query_name, transcript_id, read.reference_start + start_pos, match.group()))
-                else:
-                    logging.debug(f"No PolyA site found in read {read_name}")
-                if "AAAAAA" in seq:
-                    logging.debug(f"Sequence contains 'AAAAAA': {seq}")
-                if match:
-                    
-                    polyA_start = read.reference_start + match.start()
-                    polyA_length = len(match.group(0))
+                    read_name = read.query_name
+                    polyA_start = read.reference_start + start_pos
+                    polyA_length_detected = len(match.group(0))
                     chrom = read.reference_name
                     coordinate = read.reference_start + match.start()
-
                     distance_to_stop = coordinate - stop_codon_position
 
                     # Sequence from RNAseq read
-                    pre_polyA_seq_from_read = seq[match.start() - distance_to_stop:match.start()]
+                    pre_polyA_seq_from_read = seq[max(0, match.start() - distance_to_stop):match.start()]
 
                     # Sequence from reference genome
                     pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
 
-                    polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length, pre_polyA_seq_from_read, pre_polyA_seq_from_ref, distance_to_stop])
+                    polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length_detected, pre_polyA_seq_from_read, pre_polyA_seq_from_ref, distance_to_stop])
+                    logging.debug(f"PolyA site found: {match.group()} at position {start_pos} in read {read_name}")
+                else:
+                    logging.debug(f"No PolyA site found in read {read.query_name}")
 
+    bam.close()
     logging.info(f"Extracted {len(polyA_sites)} poly(A) sites from {bam_file}")
     return polyA_sites
+
 
 
 def perform_statistical_analysis(polyA_data, fdr_threshold):
