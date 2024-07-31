@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import pysam
 import re
 import pandas as pd
@@ -10,6 +12,9 @@ import logging
 from statsmodels.stats.multitest import multipletests
 from Bio import SeqIO
 
+# Author P. Thorpe DAG U od Dundee 2024
+
+print(" ...   libs loaded ...")
 
 def get_args():
     parser = argparse.ArgumentParser(description="Extract poly(A) sites from nanopore direct RNAseq data",
@@ -392,22 +397,22 @@ def main():
     logging.info(f"Mann-Whitney U test p-value for significant transcripts: {significant_p_value}")
 
     significant_summary_stats = {
-    'WT_Count': len(significant_wt_sites),
-    'MUT_Count': len(significant_mut_sites),
-    'WT_Mean': np.mean(significant_wt_sites),
-    'MUT_Mean': np.mean(significant_mut_sites),
-    'WT_Median': np.median(significant_wt_sites),
-    'MUT_Median': np.median(significant_mut_sites),
-    'WT_Std': np.std(significant_wt_sites),
-    'MUT_Std': np.std(significant_mut_sites),
-    'WT_Min': np.min(significant_wt_sites),
-    'MUT_Min': np.min(significant_mut_sites),
-    'WT_Max': np.max(significant_wt_sites),
-    'MUT_Max': np.max(significant_mut_sites),
-    'WT_Mode': mode(significant_wt_sites).mode[0] if len(significant_wt_sites) > 0 else np.nan,
-    'MUT_Mode': mode(significant_mut_sites).mode[0] if len(significant_mut_sites) > 0 else np.nan,
-    'WT_IQR': iqr(significant_wt_sites),
-    'MUT_IQR': iqr(significant_mut_sites)}
+        'WT_Count': len(significant_wt_sites),
+        'MUT_Count': len(significant_mut_sites),
+        'WT_Mean': np.mean(significant_wt_sites),
+        'MUT_Mean': np.mean(significant_mut_sites),
+        'WT_Median': np.median(significant_wt_sites),
+        'MUT_Median': np.median(significant_mut_sites),
+        'WT_Std': np.std(significant_wt_sites),
+        'MUT_Std': np.std(significant_mut_sites),
+        'WT_Min': np.min(significant_wt_sites),
+        'MUT_Min': np.min(significant_mut_sites),
+        'WT_Max': np.max(significant_wt_sites),
+        'MUT_Max': np.max(significant_mut_sites),
+        'WT_Mode': mode(significant_wt_sites).mode[0] if len(significant_wt_sites) > 0 else np.nan,
+        'MUT_Mode': mode(significant_mut_sites).mode[0] if len(significant_mut_sites) > 0 else np.nan,
+        'WT_IQR': iqr(significant_wt_sites),
+        'MUT_IQR': iqr(significant_mut_sites)}
 
     logging.info(f"Summary Statistics for significant transcripts only: {significant_summary_stats}")
     for key, value in significant_summary_stats.items():
