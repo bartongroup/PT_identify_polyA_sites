@@ -345,7 +345,7 @@ def main():
     u_statistic, p_value = mannwhitneyu(wt_sites, mut_sites, alternative='two-sided')
     logging.info(f"Mann-Whitney U test p-value: {p_value}")
 
-# Summary statistics for all transcripts
+    # Summary statistics for all transcripts
     summary_stats = {
         'WT_Count': len(wt_sites),
         'MUT_Count': len(mut_sites),
@@ -364,9 +364,9 @@ def main():
         'WT_IQR': iqr(wt_sites),
         'MUT_IQR': iqr(mut_sites)}
 
-
+    logging.info("Summary Statistics for All Transcripts:")
     logging.info(f"Summary Statistics: {summary_stats}")
-    for key, value in significant_summary_stats.items():
+    for key, value in summary_stats.items():
         logging.info(f"{key}: {value:.2f}")
 
     # Perform per-transcript statistical comparison of poly(A) site locations
