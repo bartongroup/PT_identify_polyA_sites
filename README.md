@@ -1,6 +1,14 @@
-# identify_polyA_sites
-script to identify polyA start sites in nanopore direct RNAseq data mapped to a genome
 
+**PT_identify_polyA_sites** is a Python-based tool designed to identify and analyze poly(A) sites in RNA-seq data. 
+This tool processes BAM files to extract poly(A) sites and performs statistical analysis to compare the poly(A) 
+site distributions between wild-type (WT) and mutant (MUT) samples.
+
+## Features
+
+- Extract poly(A) sites from BAM files mapped to transcriptome sequences.
+- Compare the distances of poly(A) start site to the stop codon between WT and MUT groups.
+- Perform statistical tests, including Mann-Whitney U test and False Discovery Rate (FDR) correction. And Earth-mover distance
+- Generate summary statistics for both overall and significant transcripts.
 
 
 # PolyA Site Extraction and Analysis
@@ -52,12 +60,16 @@ python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py \
     --bam <BAM_FILES> \
     --fasta <FASTA_FILE> \
     --reference_transcript <REFERENCE_TRANSCRIPT_FILE> \
+    --polyA_length: Minimum length of poly(A) tail to consider \
     --groups <GROUP_NAMES> \
+    --log: Log file to store the logging information. '
+    --log-level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL). \
     --output <OUTPUT_PREFIX>
 
 ```
 
-Arguments
+
+Arguments more indepth info 
 --bam: List of BAM files to be parsed (e.g., --bam file1.bam file2.bam file3.bam).
 --fasta: FASTA file of the reference genome.
 --reference_transcript: FASTA file of the reference transcripts with UTR.
@@ -67,27 +79,44 @@ Arguments
 --fdr: False discovery rate threshold for multiple testing correction (default: 0.05).
 --log: Log file to store the logging information (default: script.log).
 
-Output
-The script generates two main output files:
+### Output
+The script generates three main output files:
 
-WT_<output_prefix>.tsv: Poly(A) site information for the WT group.
-MUT_<output_prefix>.tsv: Poly(A) site information for the MUT group.
-significant_<output_prefix>.tsv: Significant transcripts with different poly(A) site locations between WT and MUT groups after FDR correction.
+1) WT_<output_prefix>.tsv: Poly(A) site information for the WT group.
+2) MUT_<output_prefix>.tsv: Poly(A) site information for the MUT group.
+3) significant_<output_prefix>.tsv: Significant transcripts with different poly(A) site locations between WT and MUT groups after FDR correction.
 Each TSV file contains the following columns:
 
-Read_Name: Name of the read.
-TranscriptID: Identifier of the transcript.
-Genomic_Coordinate: Genomic coordinate of the poly(A) site.
-PolyA_Start: Start position of the poly(A) tail.
-PolyA_Length: Length of the poly(A) tail.
-Pre_PolyA_Sequence_From_Read: Sequence preceding the poly(A) site from the RNAseq read.
-Pre_PolyA_Sequence_From_Ref: Sequence preceding the poly(A) site from the reference genome.
-Distance_to_Stop: Distance from the poly(A) site to the stop codon.
-Statistical Analysis
-The script performs statistical analysis to compare poly(A) site distributions between WT and MUT groups. It uses the Mann-Whitney U test for the comparison and applies FDR correction for multiple testing. The results are saved in the significant_<output_prefix>.tsv file.
+    Read_Name: Name of the read.
+    TranscriptID: Identifier of the transcript.
+    Genomic_Coordinate: Genomic coordinate of the poly(A) site.
+    PolyA_Start: Start position of the poly(A) tail.
+    PolyA_Length: Length of the poly(A) tail.
+    Pre_PolyA_Sequence_From_Read: Sequence preceding the poly(A) site from the RNAseq read.
+    Pre_PolyA_Sequence_From_Ref: Sequence preceding the poly(A) site from the reference genome.
+    Distance_to_Stop: Distance from the poly(A) site to the stop codon.
+
+### Statistical Analysis
+The tool performs statistical analysis to compare poly(A) site distributions between WT and MUT groups. The analysis includes the following steps:
+
+1) Extract Poly(A) Sites:
+ Identify poly(A) sites from BAM files.
+ Filter reads to only consider poly(A) sites located after the stop codon.
+2) Per-Transcript Statistical Comparison:
+ Use Mann-Whitney U test to compare the distances from poly(A) sites to the stop codon between WT and MUT groups.
+ Apply FDR correction to account for multiple testing.
+3) Global Statistical Analysis:
+ Calculate the Wasserstein distance between WT and MUT poly(A) sites.
+ Perform additional global statistical tests, including Mann-Whitney U test.
+ Generate summary statistics, including count, mean, median, standard deviation, minimum, maximum, mode, and interquartile range (IQR).
+
 
 Logging
 The script logs its progress and important information to a log file specified by the --log argument (default: script.log). The log file contains details about the processing of BAM files, the number of poly(A) sites extracted, and the results of statistical tests.
+
+## Example
+
+python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py --bam transcriptome_tests/test.bam --fasta transcriptome_tests/transcript_with_UTR.fa --polyA_length 7 --fdr 0.05 --log analysis.log --log-level INFO --output results.tsv
 
 
 # Genome version (not yet working)
