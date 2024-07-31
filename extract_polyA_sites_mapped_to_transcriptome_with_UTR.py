@@ -76,6 +76,7 @@ def get_args():
 
     return parser.parse_args()
 
+
 def index_reference_transcripts(reference_transcript_file):
     """
     Index reference transcripts from a FASTA file.
@@ -126,7 +127,6 @@ def find_stop_codon_position(ref_seq, reference_transcript):
     # Stop codon position is the end of the matched sequence
     stop_codon_position = match_start + len(reference_transcript_str)
     return stop_codon_position
-
 
 
 def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_length, group):
@@ -181,10 +181,10 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
             # Only consider poly(A) sites after the stop codon
             if read.reference_start < stop_codon_position:
                 if seq is None:
-                    logging.warning(f"Read {read.query_name} has no sequence.")
+                    logging.debug(f"Read {read.query_name} has no sequence.")
                     continue
                 if not isinstance(seq, str):
-                    logging.warning(f"Read {read.query_name} sequence is not a string. Type: {type(seq)}")
+                    logging.debug(f"Read {read.query_name} sequence is not a string. Type: {type(seq)}")
                     continue
 
                 match = re.search(r'(A{' + str(polyA_length) + ',})', seq)
@@ -225,7 +225,6 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
     return polyA_sites
 
 
-
 def perform_statistical_analysis(polyA_data, fdr_threshold):
     """
     Perform statistical analysis on poly(A) site data.
@@ -240,11 +239,13 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
     fdr_threshold (float): The significance level for FDR correction.
 
     Returns:
-    list: A list of significant results after FDR correction. Each entry contains:
-          - transcript_id (str): Transcript ID.
-          - u_statistic (float): Mann-Whitney U statistic.
-          - p_value (float): Original p-value from the Mann-Whitney U test.
-          - pval_corr (float): Corrected p-value after FDR correction.
+    tuple: A tuple containing two elements:
+           - significant_results (list): A list of significant results after FDR correction. Each entry contains:
+             - transcript_id (str): Transcript ID.
+             - u_statistic (float): Mann-Whitney U statistic.
+             - p_value (float): Original p-value from the Mann-Whitney U test.
+             - pval_corr (float): Corrected p-value after FDR correction.
+           - significant_transcript_ids (set): A set of transcript IDs that passed the FDR threshold.
     """
     results = []
 
@@ -261,7 +262,7 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
             results.append((transcript_id, u_statistic, p_value))
             logging.info(f"Transcript {transcript_id}: WT count = {len(wt_sites)}, MUT count = {len(mut_sites)}, p-value = {p_value}")
         else:
-            logging.info(f"Transcript {transcript_id}: insufficient data for WT or MUT (WT count = {len(wt_sites)}, MUT count = {len(mut_sites)})")
+            logging.debug(f"Transcript {transcript_id}: insufficient data for WT or MUT (WT count = {len(wt_sites)}, MUT count = {len(mut_sites)})")
 
     logging.info(f"Performed statistical tests on {len(results)} transcripts")
 
@@ -282,8 +283,10 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
     result[1]: The second element of the original result tuple (e.g., test statistic).
     result[2]: The original p-value.
     pval_corr: The corrected p-value."""
+    significant_transcript_ids = {result[0] for result in significant_results}
     logging.info(f"Significant transcripts after FDR correction: {len(significant_results)}")
-    return significant_results
+    logging.info(f"Significant transcript IDs: {significant_transcript_ids}")
+    return significant_results, significant_transcript_ids
 
 
 def main():
@@ -346,7 +349,7 @@ def main():
     logging.info(f"Summary Statistics: {summary_stats}")
 
     # Perform per-transcript statistical comparison of poly(A) site locations
-    significant_results = perform_statistical_analysis(polyA_data, args.fdr)
+    significant_results, significant_transcript_ids = perform_statistical_analysis(polyA_data, args.fdr)
 
     # Save significant results
     significant_df = pd.DataFrame(significant_results, columns=['TranscriptID', 'U_Statistic', 'p_value', 'Adjusted_p_value'])
@@ -354,6 +357,33 @@ def main():
     logging.info(f"Significant transcripts with different poly(A) site locations have been saved to significant_{args.output}")
 
     logging.info(f"Total significant transcripts: {len(significant_results)}")
+
+    # Global statistical analysis for significant transcripts
+    logging.info("Starting global statistical analysis for significant transcripts")
+    significant_wt_sites = polyA_df_wt[polyA_df_wt['TranscriptID'].isin(significant_transcript_ids)]['Distance_to_Stop'].values
+    significant_mut_sites = polyA_df_mut[polyA_df_mut['TranscriptID'].isin(significant_transcript_ids)]['Distance_to_Stop'].values
+
+    significant_w_distance = wasserstein_distance(significant_wt_sites, significant_mut_sites)
+    logging.info(f"Wasserstein distance for significant transcripts between WT and MUT poly(A) sites: {significant_w_distance}")
+
+    # Additional global statistical tests for significant transcripts
+    significant_u_statistic, significant_p_value = mannwhitneyu(significant_wt_sites, significant_mut_sites, alternative='two-sided')
+    logging.info(f"Mann-Whitney U test p-value for significant transcripts: {significant_p_value}")
+
+    # Summary statistics for significant transcripts
+    significant_summary_stats = {
+        'WT_Count': len(significant_wt_sites),
+        'MUT_Count': len(significant_mut_sites),
+        'WT_Mean': np.mean(significant_wt_sites),
+        'MUT_Mean': np.mean(significant_mut_sites),
+        'WT_Median': np.median(significant_wt_sites),
+        'MUT_Median': np.median(significant_mut_sites),
+        'WT_Std': np.std(significant_wt_sites),
+        'MUT_Std': np.std(significant_mut_sites)
+    }
+
+    logging.info(f"Summary Statistics for significant transcripts only: {significant_summary_stats}")
+
 
 if __name__ == "__main__":
     main()
