@@ -304,6 +304,45 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
     return significant_results, significant_transcript_ids
 
 
+from scipy.stats import wasserstein_distance
+import logging
+
+def perform_emd_analysis(polyA_data):
+    """
+    Perform Earth Mover's Distance (EMD) analysis on poly(A) site data.
+
+    This function processes poly(A) site data to compare the distributions of distances from the poly(A) sites to the stop codon
+    between wild type (WT) and mutant (MUT) groups using Earth Mover's Distance (EMD).
+
+    Parameters:
+    polyA_data (dict): Dictionary containing poly(A) site data for 'WT' and 'MUT' groups.
+                       Each value is a list of lists where each inner list contains information about a poly(A) site.
+
+    Returns:
+    list: A list of results for each transcript. Each entry contains:
+          - transcript_id (str): Transcript ID.
+          - emd (float): Earth Mover's Distance between WT and MUT distributions.
+    """
+    results = []
+
+    all_transcripts = set([site[1] for group in polyA_data.values() for site in group])
+    logging.info(f"Total transcripts found for EMD analysis: {len(all_transcripts)}")
+
+    for transcript_id in all_transcripts:
+        # site[7] is the distance to stop codon. This is what we are comparing ...
+        wt_sites = [site[7] for site in polyA_data['WT'] if site[1] == transcript_id]
+        mut_sites = [site[7] for site in polyA_data['MUT'] if site[1] == transcript_id]
+
+        if len(wt_sites) > 1 and len(mut_sites) > 1:
+            emd = wasserstein_distance(wt_sites, mut_sites)
+            results.append((transcript_id, emd))
+            logging.info(f"Transcript {transcript_id}: EMD = {emd}")
+        else:
+            logging.debug(f"Transcript {transcript_id}: insufficient data for WT or MUT (WT count = {len(wt_sites)}, MUT count = {len(mut_sites)})")
+
+    logging.info(f"Performed EMD analysis on {len(results)} transcripts")
+    return results
+
 
 def create_violin_plots(wt_sites, mut_sites, significant_wt_sites, significant_mut_sites, output_prefix):
     """
@@ -413,8 +452,16 @@ def main():
     for key, value in summary_stats.items():
         logging.info(f"{key}: {value:.2f}")
 
-    # Perform per-transcript statistical comparison of poly(A) site locations
+    # Perform per-transcript statistical comparison of poly(A) site locations - mann whitney
     significant_results, significant_transcript_ids = perform_statistical_analysis(polyA_data, args.fdr)
+
+    # Perform EMD analysis on poly(A) site locations
+    emd_results = perform_emd_analysis(polyA_data)
+
+    # Save EMD results earth mover distance
+    emd_df = pd.DataFrame(emd_results, columns=['TranscriptID', 'EMD'])
+    emd_df.to_csv(f"emd_{args.output}", sep='\t', index=False)
+    logging.info(f"EMD analysis results have been saved to emd_{args.output}")
 
     # Save significant results
     significant_df = pd.DataFrame(significant_results, columns=['TranscriptID', 'U_Statistic', 'p_value', 'Adjusted_p_value'])
