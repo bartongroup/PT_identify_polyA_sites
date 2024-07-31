@@ -9,6 +9,7 @@ import logging
 from statsmodels.stats.multitest import multipletests
 from Bio import SeqIO
 
+
 def get_args():
     parser = argparse.ArgumentParser(description="Extract poly(A) sites from nanopore direct RNAseq data",
                                      add_help=False)
@@ -71,10 +72,43 @@ def get_args():
     return parser.parse_args()
 
 def index_reference_transcripts(reference_transcript_file):
+    """
+    Index reference transcripts from a FASTA file.
+
+    This function reads a FASTA file containing reference transcript sequences and creates 
+    a dictionary where each key is a transcript ID and each value is the corresponding sequence record.
+
+    Parameters:
+    reference_transcript_file (str): Path to the FASTA file containing reference transcript sequences.
+
+    Returns:
+    dict: A dictionary of reference transcripts indexed by transcript ID.
+    """
     reference_transcripts = SeqIO.to_dict(SeqIO.parse(reference_transcript_file, "fasta"))
     return reference_transcripts
 
+
 def find_stop_codon_position(ref_seq, reference_transcript):
+    """
+    Find the stop codon position in the reference sequence.
+
+    This function identifies the position of the stop codon in a reference sequence 
+    (sequence ATG to Stop codon -  i.e. no UTR on 3 or 5 prime end)
+    by finding the end position of the reference transcript_wth-UTR-sequence 
+    within the reference sequence.
+
+    Note the read should be mapped to the transcript-with-UTR
+
+    Parameters:
+    ref_seq (Seq): Reference sequence as a Biopython Seq object.
+    reference_transcript (SeqRecord): Reference transcript as a Biopython SeqRecord object.
+
+    Returns:
+    int: Position of the stop codon in the reference sequence.
+
+    Raises:
+    ValueError: If the reference transcript is not found in the reference sequence.
+    """
     ref_seq_str = str(ref_seq)
     reference_transcript_str = str(reference_transcript.seq)
     # for testing
@@ -176,12 +210,32 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
 
 
 def perform_statistical_analysis(polyA_data, fdr_threshold):
+    """
+    Perform statistical analysis on poly(A) site data.
+
+    This function processes poly(A) site data to compare the distances from the poly(A) sites to the stop codon
+    between wild type (WT) and mutant (MUT) groups. It uses the Mann-Whitney U test for the comparison and applies 
+    False Discovery Rate (FDR) correction to account for multiple testing.
+
+    Parameters:
+    polyA_data (dict): Dictionary containing poly(A) site data for 'WT' and 'MUT' groups.
+                       Each value is a list of lists where each inner list contains information about a poly(A) site.
+    fdr_threshold (float): The significance level for FDR correction.
+
+    Returns:
+    list: A list of significant results after FDR correction. Each entry contains:
+          - transcript_id (str): Transcript ID.
+          - u_statistic (float): Mann-Whitney U statistic.
+          - p_value (float): Original p-value from the Mann-Whitney U test.
+          - pval_corr (float): Corrected p-value after FDR correction.
+    """
     results = []
 
     all_transcripts = set([site[1] for group in polyA_data.values() for site in group])
     logging.info(f"Total transcripts found: {len(all_transcripts)}")
 
     for transcript_id in all_transcripts:
+        # site[7] is the distance to stop codon. This is what we are comparing ...
         wt_sites = [site[7] for site in polyA_data['WT'] if site[1] == transcript_id]
         mut_sites = [site[7] for site in polyA_data['MUT'] if site[1] == transcript_id]
 
@@ -195,12 +249,25 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
     logging.info(f"Performed statistical tests on {len(results)} transcripts")
 
     # Multiple testing correction
+    # extract p value from results
     p_values = [result[2] for result in results]
+    # multipletests function from the statsmodels library to perform multiple testing correction. return 4 values
+    # alpha=fdr_threshold = the threshold
+    # method='fdr_bh: Specifies the method for FDR correction. refers to the Benjamini-Hochberg procedure.
     reject, pvals_corrected, _, _ = multipletests(p_values, alpha=fdr_threshold, method='fdr_bh')
 
     significant_results = [(result[0], result[1], result[2], pval_corr) for result, pval_corr, reject_flag in zip(results, pvals_corrected, reject) if reject_flag]
+    explantion_here = """This line creates a list of significant results after FDR correction.
+    It uses a list comprehension to iterate over the original results, pvals_corrected, and reject arrays simultaneously.
+    For each tuple, it checks if the test was significant after correction (if reject_flag).
+    If the test is significant, it includes a tuple in the significant_results list containing:
+    result[0]: The first element of the original result tuple (e.g., transcript ID).
+    result[1]: The second element of the original result tuple (e.g., test statistic).
+    result[2]: The original p-value.
+    pval_corr: The corrected p-value."""
     logging.info(f"Significant transcripts after FDR correction: {len(significant_results)}")
     return significant_results
+
 
 def main():
     args = get_args()
