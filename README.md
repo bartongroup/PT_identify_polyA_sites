@@ -3,6 +3,21 @@
 This tool processes BAM files to extract poly(A) sites and performs statistical analysis to compare the poly(A) 
 site distributions between wild-type (WT) and mutant (MUT) samples.
 
+## Quick start - example usage
+
+Nanopore direct RNAseq reads need to be mapped to the transcriptome with the UTR sequences. This would correspond to this in the example "transcript_with_UTR.fa". Then for the input for this tool --reference_transcript  need sot the the same sequence_ID names but with out the UTR.
+These sequnces are used to index where the stop codon is. 
+
+## Example
+
+```bash
+python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py --bam transcriptome_tests/test.bam 
+--fasta transcriptome_tests/transcript_with_UTR.fa --polyA_length 7 
+--reference_transcript transcriptome_tests/transcript.fa
+--fdr 0.05 --log analysis.log --log-level INFO --output results.tsv
+
+```
+
 ## Features
 
 - Extract poly(A) sites from BAM files mapped to transcriptome sequences.
@@ -116,8 +131,9 @@ The script logs its progress and important information to a log file specified b
 
 ## Example
 
-python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py --bam transcriptome_tests/test.bam --fasta transcriptome_tests/transcript_with_UTR.fa --polyA_length 7 --fdr 0.05 --log analysis.log --log-level INFO --output results.tsv
-
+```bash
+python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py --bam transcriptome_tests/test.bam --fasta transcriptome_tests/transcript_with_UTR.fa --polyA_length 7 --fdr 0.05 --log analysis.log --log-level INFO --output results.tsv --reference_transcript transcriptome_tests/transcript.fa
+```
 
 # Genome version (not yet working)
 
@@ -148,7 +164,8 @@ Run the main script extract_polyA_sites.py with the following command-line argum
 --groups: List of group names corresponding to BAM files (e.g., --groups WT WT WT MUT MUT MUT)
 --fdr: False discovery rate threshold for multiple testing correction (default: 0.05)
 --log: Log file to store the logging information (default: script.log)
-Example Usage
+
+### Example Usage
 
 ```bash
 python scripts/extract_polyA_sites.py --bam file1.bam file2.bam file3.bam --output polyA_sites.tsv --fasta reference.fasta --gtf annotations.gtf --groups WT WT WT MUT MUT MUT --fdr 0.05 --log script.log
@@ -156,10 +173,7 @@ python scripts/extract_polyA_sites.py --bam file1.bam file2.bam file3.bam --outp
 
 
 
-
-
-
-# Generating the test files
+# Generating the test files and example bam file. 
 
 
 ## Map the FASTA sequences to the reference and convert to BAM directly
