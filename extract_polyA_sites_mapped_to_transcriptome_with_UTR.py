@@ -63,15 +63,19 @@ def get_args():
     optional.add_argument("--log", dest='log',
                           action="store",
                           type=str,
-                          default="script.log",
+                          default="extract_polA_site.log",
                           help="Log file to store the logging information")
 
     parser.add_argument("--log-level", dest='log_level', 
-                        action="store", type=str, default="INFO",
+                        action="store", 
+                        type=str, 
+                        default="INFO",
                         help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
 
 
-    optional.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
+    optional.add_argument("-h", "--help", 
+                          action="help", 
+                          default=argparse.SUPPRESS,
                           help="Show this help message and exit")
 
     return parser.parse_args()
@@ -195,7 +199,8 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                     # If initial match is within CDS, search again after stop codon
                     if coordinate < stop_codon_position:
                         logging.debug(f"Initial polyA site within CDS for read {read.query_name}. Searching again after stop codon.")
-                        match = re.search(r'(A{' + str(polyA_length) + ',})', seq[stop_codon_position - read.reference_start:])
+                        match = re.search(r'(A{' + str(polyA_length) + ',})', seq[stop_codon_position - 
+                                                                                  read.reference_start:])
                         if match:
                             start_pos = match.start() + (stop_codon_position - read.reference_start)
                             coordinate = read.reference_start + start_pos
@@ -213,7 +218,9 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                         # Sequence from reference genome
                         pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
 
-                        polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length_detected, pre_polyA_seq_from_read, pre_polyA_seq_from_ref, distance_to_stop])
+                        polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, 
+                                            polyA_length_detected, pre_polyA_seq_from_read,
+                                            pre_polyA_seq_from_ref, distance_to_stop])
                         logging.debug(f"PolyA site found: {match.group()} at position {start_pos} in read {read_name}")
                     elif match:
                         logging.debug(f"PolyA site found within CDS: {match.group()} at position {start_pos} in read {read.query_name}")
@@ -309,11 +316,14 @@ def main():
     reference_transcripts = index_reference_transcripts(args.reference_transcript)
 
     for bam_file, group in zip(args.bam, args.groups):
-        polyA_sites = extract_polyA_sites(bam_file, args.fasta, reference_transcripts, args.polyA_length, group)
+        polyA_sites = extract_polyA_sites(bam_file, args.fasta, reference_transcripts, 
+                                          args.polyA_length, group)
         polyA_data[group].extend(polyA_sites)
 
     # Convert results to DataFrame
-    columns = ['Read_Name', 'TranscriptID', 'Genomic_Coordinate', 'PolyA_Start', 'PolyA_Length', 'Pre_PolyA_Sequence_From_Read', 'Pre_PolyA_Sequence_From_Ref', 'Distance_to_Stop']
+    columns = ['Read_Name', 'TranscriptID', 'Genomic_Coordinate', 'PolyA_Start', 
+               'PolyA_Length', 'Pre_PolyA_Sequence_From_Read', 
+               'Pre_PolyA_Sequence_From_Ref', 'Distance_to_Stop']
     polyA_df_wt = pd.DataFrame(polyA_data['WT'], columns=columns)
     polyA_df_mut = pd.DataFrame(polyA_data['MUT'], columns=columns)
 
