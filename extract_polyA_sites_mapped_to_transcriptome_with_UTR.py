@@ -200,20 +200,23 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                             start_pos = match.start() + (stop_codon_position - read.reference_start)
                             coordinate = read.reference_start + start_pos
 
-                    read_name = read.query_name
-                    polyA_start = read.reference_start + start_pos
-                    polyA_length_detected = len(match.group(0))
-                    chrom = read.reference_name
-                    distance_to_stop = coordinate - stop_codon_position
+                    if match and coordinate >= stop_codon_position:
+                        read_name = read.query_name
+                        polyA_start = read.reference_start + start_pos
+                        polyA_length_detected = len(match.group(0))
+                        chrom = read.reference_name
+                        distance_to_stop = coordinate - stop_codon_position
 
-                    # Sequence from RNAseq read
-                    pre_polyA_seq_from_read = seq[max(0, match.start() - distance_to_stop):match.start()]
+                        # Sequence from RNAseq read
+                        pre_polyA_seq_from_read = seq[max(0, match.start() - distance_to_stop):match.start()]
 
-                    # Sequence from reference genome
-                    pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
+                        # Sequence from reference genome
+                        pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
 
-                    polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length_detected, pre_polyA_seq_from_read, pre_polyA_seq_from_ref, distance_to_stop])
-                    logging.debug(f"PolyA site found: {match.group()} at position {start_pos} in read {read_name}")
+                        polyA_sites.append([read_name, transcript_id, coordinate, polyA_start, polyA_length_detected, pre_polyA_seq_from_read, pre_polyA_seq_from_ref, distance_to_stop])
+                        logging.debug(f"PolyA site found: {match.group()} at position {start_pos} in read {read_name}")
+                    elif match:
+                        logging.debug(f"PolyA site found within CDS: {match.group()} at position {start_pos} in read {read.query_name}")
                 else:
                     logging.debug(f"No PolyA site found in read {read.query_name}")
 
