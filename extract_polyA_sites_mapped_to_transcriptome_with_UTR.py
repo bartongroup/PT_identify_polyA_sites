@@ -66,6 +66,11 @@ def get_args():
                           default="script.log",
                           help="Log file to store the logging information")
 
+    parser.add_argument("--log-level", dest='log_level', 
+                        action="store", type=str, default="INFO",
+                        help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
+
+
     optional.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
                           help="Show this help message and exit")
 
@@ -185,11 +190,20 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                 match = re.search(r'(A{' + str(polyA_length) + ',})', seq)
                 if match:
                     start_pos = match.start()
+                    coordinate = read.reference_start + start_pos
+
+                    # If initial match is within CDS, search again after stop codon
+                    if coordinate < stop_codon_position:
+                        logging.debug(f"Initial polyA site within CDS for read {read.query_name}. Searching again after stop codon.")
+                        match = re.search(r'(A{' + str(polyA_length) + ',})', seq[stop_codon_position - read.reference_start:])
+                        if match:
+                            start_pos = match.start() + (stop_codon_position - read.reference_start)
+                            coordinate = read.reference_start + start_pos
+
                     read_name = read.query_name
                     polyA_start = read.reference_start + start_pos
                     polyA_length_detected = len(match.group(0))
                     chrom = read.reference_name
-                    coordinate = read.reference_start + match.start()
                     distance_to_stop = coordinate - stop_codon_position
 
                     # Sequence from RNAseq read
@@ -273,7 +287,9 @@ def main():
     args = get_args()
 
     # Setup logging to file and console
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', 
+    log_level = getattr(logging, args.log_level.upper(), logging.INFO)
+    logging.basicConfig(level=log_level, 
+                        format='%(asctime)s - %(levelname)s - %(message)s', 
                         filename=args.log, filemode='w')
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
