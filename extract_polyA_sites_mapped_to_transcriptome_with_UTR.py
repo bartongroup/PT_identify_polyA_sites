@@ -442,8 +442,8 @@ def main():
         'MUT_Min': np.min(mut_sites),
         'WT_Max': np.max(wt_sites),
         'MUT_Max': np.max(mut_sites),
-        'WT_Mode': mode(wt_sites).mode[0] if len(wt_sites) > 0 else np.nan,
-        'MUT_Mode': mode(mut_sites).mode[0] if len(mut_sites) > 0 else np.nan,
+        'WT_Mode': mode(wt_sites, keepdims=False).mode[0] if len(wt_sites) > 0 else np.nan,
+        'MUT_Mode': mode(mut_sites, keepdims=False).mode[0] if len(mut_sites) > 0 else np.nan,
         'WT_IQR': iqr(wt_sites),
         'MUT_IQR': iqr(mut_sites)}
 
@@ -497,8 +497,8 @@ def main():
         'MUT_Min': np.min(significant_mut_sites),
         'WT_Max': np.max(significant_wt_sites),
         'MUT_Max': np.max(significant_mut_sites),
-        'WT_Mode': mode(significant_wt_sites).mode[0] if len(significant_wt_sites) > 0 else np.nan,
-        'MUT_Mode': mode(significant_mut_sites).mode[0] if len(significant_mut_sites) > 0 else np.nan,
+        'WT_Mode': mode(significant_wt_sites, keepdims=False).mode[0] if len(significant_wt_sites) > 0 else np.nan,
+        'MUT_Mode': mode(significant_mut_sites, keepdims=False).mode[0] if len(significant_mut_sites) > 0 else np.nan,
         'WT_IQR': iqr(significant_wt_sites),
         'MUT_IQR': iqr(significant_mut_sites)}
 
