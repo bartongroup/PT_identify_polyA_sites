@@ -345,24 +345,25 @@ def main():
     u_statistic, p_value = mannwhitneyu(wt_sites, mut_sites, alternative='two-sided')
     logging.info(f"Mann-Whitney U test p-value: {p_value}")
 
-    # Summary statistics
-    significant_summary_stats = {
-    'WT_Count': len(significant_wt_sites),
-    'MUT_Count': len(significant_mut_sites),
-    'WT_Mean': np.mean(significant_wt_sites),
-    'MUT_Mean': np.mean(significant_mut_sites),
-    'WT_Median': np.median(significant_wt_sites),
-    'MUT_Median': np.median(significant_mut_sites),
-    'WT_Std': np.std(significant_wt_sites),
-    'MUT_Std': np.std(significant_mut_sites),
-    'WT_Min': np.min(significant_wt_sites),
-    'MUT_Min': np.min(significant_mut_sites),
-    'WT_Max': np.max(significant_wt_sites),
-    'MUT_Max': np.max(significant_mut_sites),
-    'WT_Mode': mode(significant_wt_sites).mode[0] if len(significant_wt_sites) > 0 else np.nan,
-    'MUT_Mode': mode(significant_mut_sites).mode[0] if len(significant_mut_sites) > 0 else np.nan,
-    'WT_IQR': iqr(significant_wt_sites),
-    'MUT_IQR': iqr(significant_mut_sites)}
+# Summary statistics for all transcripts
+    summary_stats = {
+        'WT_Count': len(wt_sites),
+        'MUT_Count': len(mut_sites),
+        'WT_Mean': np.mean(wt_sites),
+        'MUT_Mean': np.mean(mut_sites),
+        'WT_Median': np.median(wt_sites),
+        'MUT_Median': np.median(mut_sites),
+        'WT_Std': np.std(wt_sites),
+        'MUT_Std': np.std(mut_sites),
+        'WT_Min': np.min(wt_sites),
+        'MUT_Min': np.min(mut_sites),
+        'WT_Max': np.max(wt_sites),
+        'MUT_Max': np.max(mut_sites),
+        'WT_Mode': mode(wt_sites).mode[0] if len(wt_sites) > 0 else np.nan,
+        'MUT_Mode': mode(mut_sites).mode[0] if len(mut_sites) > 0 else np.nan,
+        'WT_IQR': iqr(wt_sites),
+        'MUT_IQR': iqr(mut_sites)}
+
 
     logging.info(f"Summary Statistics: {summary_stats}")
     for key, value in significant_summary_stats.items():
