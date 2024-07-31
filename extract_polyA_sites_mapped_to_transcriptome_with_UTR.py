@@ -3,6 +3,8 @@
 import pysam
 import re
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 import argparse
 import os
 from scipy.stats import wasserstein_distance, mannwhitneyu
@@ -302,6 +304,43 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
     return significant_results, significant_transcript_ids
 
 
+
+def create_violin_plots(wt_sites, mut_sites, significant_wt_sites, significant_mut_sites, output_prefix):
+    """
+    Create violin plots for WT and MUT groups, and save them to a PDF file.
+
+    Parameters:
+    wt_sites (array-like): Distance to stop codon for WT group for all transcripts.
+    mut_sites (array-like): Distance to stop codon for MUT group for all transcripts.
+    significant_wt_sites (array-like): Distance to stop codon for WT group for significant transcripts.
+    significant_mut_sites (array-like): Distance to stop codon for MUT group for significant transcripts.
+    output_prefix (str): Prefix for the output PDF file.
+    """
+    data_all = pd.DataFrame({
+        'Distance_to_Stop': list(wt_sites) + list(mut_sites),
+        'Group': ['WT'] * len(wt_sites) + ['MUT'] * len(mut_sites)
+    })
+
+    data_significant = pd.DataFrame({
+        'Distance_to_Stop': list(significant_wt_sites) + list(significant_mut_sites),
+        'Group': ['WT'] * len(significant_wt_sites) + ['MUT'] * len(significant_mut_sites)
+    })
+
+    # Plot for all transcripts
+    plt.figure(figsize=(10, 6))
+    sns.violinplot(x='Group', y='Distance_to_Stop', data=data_all)
+    plt.title('Violin Plot for All Transcripts')
+    plt.savefig(f"{output_prefix}_all_transcripts_violin_plot.pdf")
+    plt.close()
+
+    # Plot for significant transcripts
+    plt.figure(figsize=(10, 6))
+    sns.violinplot(x='Group', y='Distance_to_Stop', data=data_significant)
+    plt.title('Violin Plot for Significant Transcripts')
+    plt.savefig(f"{output_prefix}_significant_transcripts_violin_plot.pdf")
+    plt.close()
+
+
 def main():
     args = get_args()
 
@@ -393,7 +432,9 @@ def main():
     logging.info(f"Wasserstein distance for significant transcripts between WT and MUT poly(A) sites: {significant_w_distance}")
 
     # Additional global statistical tests for significant transcripts
-    significant_u_statistic, significant_p_value = mannwhitneyu(significant_wt_sites, significant_mut_sites, alternative='two-sided')
+    significant_u_statistic, significant_p_value = mannwhitneyu(significant_wt_sites, 
+                                                                significant_mut_sites, 
+                                                                alternative='two-sided')
     logging.info(f"Mann-Whitney U test p-value for significant transcripts: {significant_p_value}")
 
     significant_summary_stats = {
@@ -417,6 +458,9 @@ def main():
     logging.info(f"Summary Statistics for significant transcripts only: {significant_summary_stats}")
     for key, value in significant_summary_stats.items():
         logging.info(f"{key}: {value:.2f}")
+
+    # call the plot function
+    create_violin_plots(wt_sites, mut_sites, significant_wt_sites, significant_mut_sites, args.output)
 
 if __name__ == "__main__":
     main()
