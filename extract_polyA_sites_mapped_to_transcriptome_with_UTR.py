@@ -4,6 +4,7 @@ import pandas as pd
 import argparse
 import os
 from scipy.stats import wasserstein_distance, mannwhitneyu
+from scipy.stats import iqr, mode
 import numpy as np
 import logging
 from statsmodels.stats.multitest import multipletests
@@ -345,18 +346,27 @@ def main():
     logging.info(f"Mann-Whitney U test p-value: {p_value}")
 
     # Summary statistics
-    summary_stats = {
-        'WT_Count': len(wt_sites),
-        'MUT_Count': len(mut_sites),
-        'WT_Mean': np.mean(wt_sites),
-        'MUT_Mean': np.mean(mut_sites),
-        'WT_Median': np.median(wt_sites),
-        'MUT_Median': np.median(wt_sites),
-        'WT_Std': np.std(wt_sites),
-        'MUT_Std': np.std(wt_sites)
-    }
+    significant_summary_stats = {
+    'WT_Count': len(significant_wt_sites),
+    'MUT_Count': len(significant_mut_sites),
+    'WT_Mean': np.mean(significant_wt_sites),
+    'MUT_Mean': np.mean(significant_mut_sites),
+    'WT_Median': np.median(significant_wt_sites),
+    'MUT_Median': np.median(significant_mut_sites),
+    'WT_Std': np.std(significant_wt_sites),
+    'MUT_Std': np.std(significant_mut_sites),
+    'WT_Min': np.min(significant_wt_sites),
+    'MUT_Min': np.min(significant_mut_sites),
+    'WT_Max': np.max(significant_wt_sites),
+    'MUT_Max': np.max(significant_mut_sites),
+    'WT_Mode': mode(significant_wt_sites).mode[0] if len(significant_wt_sites) > 0 else np.nan,
+    'MUT_Mode': mode(significant_mut_sites).mode[0] if len(significant_mut_sites) > 0 else np.nan,
+    'WT_IQR': iqr(significant_wt_sites),
+    'MUT_IQR': iqr(significant_mut_sites)}
 
     logging.info(f"Summary Statistics: {summary_stats}")
+    for key, value in significant_summary_stats.items():
+        logging.info(f"{key}: {value:.2f}")
 
     # Perform per-transcript statistical comparison of poly(A) site locations
     significant_results, significant_transcript_ids = perform_statistical_analysis(polyA_data, args.fdr)
@@ -380,20 +390,27 @@ def main():
     significant_u_statistic, significant_p_value = mannwhitneyu(significant_wt_sites, significant_mut_sites, alternative='two-sided')
     logging.info(f"Mann-Whitney U test p-value for significant transcripts: {significant_p_value}")
 
-    # Summary statistics for significant transcripts
     significant_summary_stats = {
-        'WT_Count': len(significant_wt_sites),
-        'MUT_Count': len(significant_mut_sites),
-        'WT_Mean': np.mean(significant_wt_sites),
-        'MUT_Mean': np.mean(significant_mut_sites),
-        'WT_Median': np.median(significant_wt_sites),
-        'MUT_Median': np.median(significant_mut_sites),
-        'WT_Std': np.std(significant_wt_sites),
-        'MUT_Std': np.std(significant_mut_sites)
-    }
+    'WT_Count': len(significant_wt_sites),
+    'MUT_Count': len(significant_mut_sites),
+    'WT_Mean': np.mean(significant_wt_sites),
+    'MUT_Mean': np.mean(significant_mut_sites),
+    'WT_Median': np.median(significant_wt_sites),
+    'MUT_Median': np.median(significant_mut_sites),
+    'WT_Std': np.std(significant_wt_sites),
+    'MUT_Std': np.std(significant_mut_sites),
+    'WT_Min': np.min(significant_wt_sites),
+    'MUT_Min': np.min(significant_mut_sites),
+    'WT_Max': np.max(significant_wt_sites),
+    'MUT_Max': np.max(significant_mut_sites),
+    'WT_Mode': mode(significant_wt_sites).mode[0] if len(significant_wt_sites) > 0 else np.nan,
+    'MUT_Mode': mode(significant_mut_sites).mode[0] if len(significant_mut_sites) > 0 else np.nan,
+    'WT_IQR': iqr(significant_wt_sites),
+    'MUT_IQR': iqr(significant_mut_sites)}
 
     logging.info(f"Summary Statistics for significant transcripts only: {significant_summary_stats}")
-
+    for key, value in significant_summary_stats.items():
+        logging.info(f"{key}: {value:.2f}")
 
 if __name__ == "__main__":
     main()
