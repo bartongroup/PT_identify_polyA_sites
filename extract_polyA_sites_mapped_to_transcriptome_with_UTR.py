@@ -275,7 +275,7 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
         if len(wt_sites) > 1 and len(mut_sites) > 1:
             u_statistic, p_value = mannwhitneyu(wt_sites, mut_sites, alternative='two-sided')
             results.append((transcript_id, u_statistic, p_value))
-            logging.info(f"Transcript {transcript_id}: WT count = {len(wt_sites)}, MUT count = {len(mut_sites)}, p-value = {p_value}")
+            logging.debug(f"Transcript {transcript_id}: WT count = {len(wt_sites)}, MUT count = {len(mut_sites)}, p-value = {p_value}")
         else:
             logging.debug(f"Transcript {transcript_id}: insufficient data for WT or MUT (WT count = {len(wt_sites)}, MUT count = {len(mut_sites)})")
 
