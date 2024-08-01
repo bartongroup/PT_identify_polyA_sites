@@ -301,7 +301,7 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
     significant_transcript_ids = {result[0] for result in significant_results}
     logging.info(f"Significant transcripts after FDR correction: {len(significant_results)}")
     logging.info(f"Significant transcript IDs: {significant_transcript_ids}")
-    return significant_results, significant_transcript_ids
+    return results, significant_results, significant_transcript_ids
 
 
 def perform_emd_analysis(polyA_data):
@@ -354,11 +354,15 @@ def perform_emd_analysis(polyA_data):
             mut_min = np.min(mut_sites)
             wt_max = np.max(wt_sites)
             mut_max = np.max(mut_sites)
-            wt_mode = mode(wt_sites).mode[0] if len(wt_sites) > 0 else np.nan
-            mut_mode = mode(mut_sites).mode[0] if len(mut_sites) > 0 else np.nan
-            
-            results.append((transcript_id, emd, wt_mean, mut_mean, wt_median, mut_median, wt_count, mut_count, wt_min, mut_min, wt_max, mut_max, wt_mode, mut_mode))
-            logging.debug(f"Transcript {transcript_id}: EMD = {emd}")
+            wt_mode_result = mode(wt_sites)
+            wt_mode = wt_mode_result.mode[0] if len(wt_mode_result.mode) > 0 else np.nan
+            mut_mode_result = mode(mut_sites)
+            mut_mode = mut_mode_result.mode[0] if len(mut_mode_result.mode) > 0 else np.nan
+
+            results.append((transcript_id, emd, wt_mean, mut_mean, wt_median, 
+                            mut_median, wt_count, mut_count, wt_min, mut_min, 
+                            wt_max, mut_max, wt_mode, mut_mode))
+            logging.info(f"Transcript {transcript_id}: EMD = {emd}")
         else:
             logging.debug(f"Transcript {transcript_id}: insufficient data for WT or MUT (WT count = {len(wt_sites)}, MUT count = {len(mut_sites)})")
 
@@ -493,24 +497,45 @@ def main():
         logging.info(f"{key}: {value:.2f}")
 
     # Perform per-transcript statistical comparison of poly(A) site locations - mann whitney
-    significant_results, significant_transcript_ids = perform_statistical_analysis(polyA_data, 
+    results, significant_results, significant_transcript_ids = perform_statistical_analysis(polyA_data, 
                                                                                    args.fdr)
 
+ 
     # Perform EMD analysis on poly(A) site locations
     emd_results = perform_emd_analysis(polyA_data)
 
-    # Save EMD results with summary statistics
-    emd_df = pd.DataFrame(emd_results, columns=['TranscriptID', 'EMD', 'WT_Mean', 'MUT_Mean', 
-                                                'WT_Median', 'MUT_Median', 'WT_Count', 
-                                                'MUT_Count', 'WT_Min', 'MUT_Min', 'WT_Max',
-                                                'MUT_Max', 'WT_Mode', 'MUT_Mode'])
-    emd_df.to_csv(f"emd_{args.output}", sep='\t', index=False)
-    logging.info(f"EMD analysis results have been saved to emd_{args.output}")
+    # Perform statistical analysis on poly(A) site locations
+    all_stat_results, significant_stat_results = perform_statistical_analysis(polyA_data, args.fdr)
+
+    # Convert results to DataFrames
+    emd_df = pd.DataFrame(emd_results, columns=['TranscriptID', 'EMD', 'WT_Mean', 'MUT_Mean', 'WT_Median', 'MUT_Median', 
+                                            'WT_Count', 'MUT_Count', 'WT_Min', 'MUT_Min', 'WT_Max', 'MUT_Max', 
+                                            'WT_Mode', 'MUT_Mode'])
+
+    stat_df = pd.DataFrame(all_stat_results, columns=['TranscriptID', 'U_Statistic', 'p_value'])
+
+    # Merge DataFrames on TranscriptID
+    combined_df = pd.merge(emd_df, stat_df, on='TranscriptID', how='left')
+
+    # Apply FDR correction to the combined DataFrame
+    p_values = combined_df['p_value'].values
+    reject, pvals_corrected, _, _ = multipletests(p_values, alpha=args.fdr, method='fdr_bh')
+    combined_df['Adjusted_p_value'] = pvals_corrected
+    combined_df['Significant'] = reject
+
+    # Save combined results to a single file
+    combined_df.to_csv(f"stats_analysis_{args.output}", sep='\t', index=False)
+    logging.info(f"Combined EMD and statistical analysis results have been saved to stats_analysis{args.output}")
+
 
     # Save significant results
     significant_df = pd.DataFrame(significant_results, columns=['TranscriptID', 'U_Statistic', 
                                                                 'p_value', 'Adjusted_p_value'])
     significant_df.to_csv(f"significant_{args.output}", sep='\t', index=False)
+    logging.info(f"Significant transcripts with different poly(A) site locations have been saved to significant_{args.output}")
+
+    logging.info(f"Total significant transcripts: {len(significant_results)}")
+
     logging.info(f"Significant transcripts with different poly(A) site locations have been saved to significant_{args.output}")
 
     logging.info(f"Total significant transcripts: {len(significant_results)}")
