@@ -509,7 +509,7 @@ def main():
                                             'WT_Count', 'MUT_Count', 'WT_Min', 'MUT_Min', 'WT_Max', 'MUT_Max', 
                                             'WT_Mode', 'MUT_Mode'])
 
-    stat_df = pd.DataFrame(all_stat_results, columns=['TranscriptID', 'U_Statistic', 'p_value'])
+    stat_df = pd.DataFrame(results, columns=['TranscriptID', 'U_Statistic', 'p_value'])
 
     # Merge DataFrames on TranscriptID
     combined_df = pd.merge(emd_df, stat_df, on='TranscriptID', how='left')
