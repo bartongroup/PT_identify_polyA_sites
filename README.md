@@ -39,11 +39,12 @@ This project provides scripts for extracting poly(A) sites from nanopore direct 
 - `statsmodels` (for multiple testing correction)
 - `nose2` (for running unit tests)
 - `biopython` for the transcriptome approach 
-
+- `matplotlib` for the violin plot 
+- `seaborn` for the violin plot 
 You can install the required Python packages using `pip`:
 
 ```bash
-pip install pysam pandas scipy statsmodels nose2 biopython
+pip install pysam pandas scipy statsmodels nose2 biopython matplotlib seaborn
 ```
 
 ## unit test

@@ -14,7 +14,7 @@ import logging
 from statsmodels.stats.multitest import multipletests
 from Bio import SeqIO
 
-# Author P. Thorpe DAG U od Dundee 2024
+# Author P. Thorpe DAG UoD Dundee 2024
 
 print(" ...   libs loaded ...")
 
@@ -362,7 +362,7 @@ def perform_emd_analysis(polyA_data):
             results.append((transcript_id, emd, wt_mean, mut_mean, wt_median, 
                             mut_median, wt_count, mut_count, wt_min, mut_min, 
                             wt_max, mut_max, wt_mode, mut_mode))
-            logging.info(f"Transcript {transcript_id}: EMD = {emd}")
+            logging.debug(f"Transcript {transcript_id}: EMD = {emd}")
         else:
             logging.debug(f"Transcript {transcript_id}: insufficient data for WT or MUT (WT count = {len(wt_sites)}, MUT count = {len(mut_sites)})")
 
@@ -370,7 +370,8 @@ def perform_emd_analysis(polyA_data):
     return results
 
 
-def create_violin_plots(wt_sites, mut_sites, significant_wt_sites, significant_mut_sites, output_prefix):
+def create_violin_plots(wt_sites, mut_sites, significant_wt_sites, 
+                        significant_mut_sites, output_prefix):
     """
     Create violin plots for WT and MUT groups, and save them to a PDF file.
 
@@ -499,13 +500,9 @@ def main():
     # Perform per-transcript statistical comparison of poly(A) site locations - mann whitney
     results, significant_results, significant_transcript_ids = perform_statistical_analysis(polyA_data, 
                                                                                    args.fdr)
-
  
     # Perform EMD analysis on poly(A) site locations
     emd_results = perform_emd_analysis(polyA_data)
-
-    # Perform statistical analysis on poly(A) site locations
-    all_stat_results, significant_stat_results = perform_statistical_analysis(polyA_data, args.fdr)
 
     # Convert results to DataFrames
     emd_df = pd.DataFrame(emd_results, columns=['TranscriptID', 'EMD', 'WT_Mean', 'MUT_Mean', 'WT_Median', 'MUT_Median', 
@@ -577,7 +574,10 @@ def main():
         logging.info(f"{key}: {value:.2f}")
 
     # call the plot function
-    create_violin_plots(wt_sites, mut_sites, significant_wt_sites, significant_mut_sites, args.output)
+    create_violin_plots(wt_sites, mut_sites, 
+                        significant_wt_sites, 
+                        significant_mut_sites, 
+                        args.output)
 
 if __name__ == "__main__":
     main()
