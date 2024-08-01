@@ -179,7 +179,7 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
             transcript_id = read.reference_name
 
             if transcript_id not in reference_transcripts:
-                logging.warning(f"Transcript ID {transcript_id} not found in reference transcripts.")
+                logging.debug(f"Transcript ID {transcript_id} not found in reference transcripts.")
                 continue
 
             ref_seq = fasta[transcript_id].seq
@@ -358,7 +358,7 @@ def perform_emd_analysis(polyA_data):
             mut_mode = mode(mut_sites).mode[0] if len(mut_sites) > 0 else np.nan
             
             results.append((transcript_id, emd, wt_mean, mut_mean, wt_median, mut_median, wt_count, mut_count, wt_min, mut_min, wt_max, mut_max, wt_mode, mut_mode))
-            logging.info(f"Transcript {transcript_id}: EMD = {emd}")
+            logging.debug(f"Transcript {transcript_id}: EMD = {emd}")
         else:
             logging.debug(f"Transcript {transcript_id}: insufficient data for WT or MUT (WT count = {len(wt_sites)}, MUT count = {len(mut_sites)})")
 
