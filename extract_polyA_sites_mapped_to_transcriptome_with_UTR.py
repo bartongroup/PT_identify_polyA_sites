@@ -304,9 +304,6 @@ def perform_statistical_analysis(polyA_data, fdr_threshold):
     return significant_results, significant_transcript_ids
 
 
-from scipy.stats import wasserstein_distance
-import logging
-
 def perform_emd_analysis(polyA_data):
     """
     Perform Earth Mover's Distance (EMD) analysis on poly(A) site data.
@@ -366,16 +363,34 @@ def create_violin_plots(wt_sites, mut_sites, significant_wt_sites, significant_m
     })
 
     # Plot for all transcripts
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 12))
+
+    plt.subplot(2, 1, 1)
     sns.violinplot(x='Group', y='Distance_to_Stop', data=data_all)
     plt.title('Violin Plot for All Transcripts')
+
+    plt.subplot(2, 1, 2)
+    sns.violinplot(x='Group', y='Distance_to_Stop', data=data_all)
+    plt.yscale('log')
+    plt.title('Violin Plot for All Transcripts (Log Scale)')
+
+    plt.tight_layout()
     plt.savefig(f"{output_prefix}_all_transcripts_violin_plot.pdf")
     plt.close()
 
     # Plot for significant transcripts
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 12))
+
+    plt.subplot(2, 1, 1)
     sns.violinplot(x='Group', y='Distance_to_Stop', data=data_significant)
     plt.title('Violin Plot for Significant Transcripts')
+
+    plt.subplot(2, 1, 2)
+    sns.violinplot(x='Group', y='Distance_to_Stop', data=data_significant)
+    plt.yscale('log')
+    plt.title('Violin Plot for Significant Transcripts (Log Scale)')
+
+    plt.tight_layout()
     plt.savefig(f"{output_prefix}_significant_transcripts_violin_plot.pdf")
     plt.close()
 
