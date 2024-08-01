@@ -319,6 +319,18 @@ def perform_emd_analysis(polyA_data):
     list: A list of results for each transcript. Each entry contains:
           - transcript_id (str): Transcript ID.
           - emd (float): Earth Mover's Distance between WT and MUT distributions.
+          - wt_mean (float): Mean distance to stop codon for WT.
+          - mut_mean (float): Mean distance to stop codon for MUT.
+          - wt_median (float): Median distance to stop codon for WT.
+          - mut_median (float): Median distance to stop codon for MUT.
+          - wt_count (int): Number of WT sites.
+          - mut_count (int): Number of MUT sites.
+          - wt_min (float): Minimum distance to stop codon for WT.
+          - mut_min (float): Minimum distance to stop codon for MUT.
+          - wt_max (float): Maximum distance to stop codon for WT.
+          - mut_max (float): Maximum distance to stop codon for MUT.
+          - wt_mode (float): Mode distance to stop codon for WT.
+          - mut_mode (float): Mode distance to stop codon for MUT.
     """
     results = []
 
@@ -332,7 +344,20 @@ def perform_emd_analysis(polyA_data):
 
         if len(wt_sites) > 1 and len(mut_sites) > 1:
             emd = wasserstein_distance(wt_sites, mut_sites)
-            results.append((transcript_id, emd))
+            wt_mean = np.mean(wt_sites)
+            mut_mean = np.mean(mut_sites)
+            wt_median = np.median(wt_sites)
+            mut_median = np.median(mut_sites)
+            wt_count = len(wt_sites)
+            mut_count = len(mut_sites)
+            wt_min = np.min(wt_sites)
+            mut_min = np.min(mut_sites)
+            wt_max = np.max(wt_sites)
+            mut_max = np.max(mut_sites)
+            wt_mode = mode(wt_sites).mode[0] if len(wt_sites) > 0 else np.nan
+            mut_mode = mode(mut_sites).mode[0] if len(mut_sites) > 0 else np.nan
+            
+            results.append((transcript_id, emd, wt_mean, mut_mean, wt_median, mut_median, wt_count, mut_count, wt_min, mut_min, wt_max, mut_max, wt_mode, mut_mode))
             logging.info(f"Transcript {transcript_id}: EMD = {emd}")
         else:
             logging.debug(f"Transcript {transcript_id}: insufficient data for WT or MUT (WT count = {len(wt_sites)}, MUT count = {len(mut_sites)})")
@@ -468,18 +493,23 @@ def main():
         logging.info(f"{key}: {value:.2f}")
 
     # Perform per-transcript statistical comparison of poly(A) site locations - mann whitney
-    significant_results, significant_transcript_ids = perform_statistical_analysis(polyA_data, args.fdr)
+    significant_results, significant_transcript_ids = perform_statistical_analysis(polyA_data, 
+                                                                                   args.fdr)
 
     # Perform EMD analysis on poly(A) site locations
     emd_results = perform_emd_analysis(polyA_data)
 
-    # Save EMD results earth mover distance
-    emd_df = pd.DataFrame(emd_results, columns=['TranscriptID', 'EMD'])
+    # Save EMD results with summary statistics
+    emd_df = pd.DataFrame(emd_results, columns=['TranscriptID', 'EMD', 'WT_Mean', 'MUT_Mean', 
+                                                'WT_Median', 'MUT_Median', 'WT_Count', 
+                                                'MUT_Count', 'WT_Min', 'MUT_Min', 'WT_Max',
+                                                'MUT_Max', 'WT_Mode', 'MUT_Mode'])
     emd_df.to_csv(f"emd_{args.output}", sep='\t', index=False)
     logging.info(f"EMD analysis results have been saved to emd_{args.output}")
 
     # Save significant results
-    significant_df = pd.DataFrame(significant_results, columns=['TranscriptID', 'U_Statistic', 'p_value', 'Adjusted_p_value'])
+    significant_df = pd.DataFrame(significant_results, columns=['TranscriptID', 'U_Statistic', 
+                                                                'p_value', 'Adjusted_p_value'])
     significant_df.to_csv(f"significant_{args.output}", sep='\t', index=False)
     logging.info(f"Significant transcripts with different poly(A) site locations have been saved to significant_{args.output}")
 
@@ -512,8 +542,8 @@ def main():
         'MUT_Min': np.min(significant_mut_sites),
         'WT_Max': np.max(significant_wt_sites),
         'MUT_Max': np.max(significant_mut_sites),
-        'WT_Mode': mode(significant_wt_sites, keepdims=False).mode[0] if len(significant_wt_sites) > 0 else np.nan,
-        'MUT_Mode': mode(significant_mut_sites, keepdims=False).mode[0] if len(significant_mut_sites) > 0 else np.nan,
+        'WT_Mode': mode(significant_wt_sites).mode[0] if len(significant_wt_sites) > 0 else np.nan,
+        'MUT_Mode': mode(significant_mut_sites).mode[0] if len(significant_mut_sites) > 0 else np.nan,
         'WT_IQR': iqr(significant_wt_sites),
         'MUT_IQR': iqr(significant_mut_sites)}
 
