@@ -187,7 +187,7 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
             try:
                 stop_codon_position = find_stop_codon_position(ref_seq, reference_transcript)
             except ValueError as e:
-                logging.warning(e)
+                logging.debug(e)
                 continue
 
             # Only consider poly(A) sites after the stop codon
