@@ -5,6 +5,8 @@ import re
 import os
 import logging
 from Bio import SeqIO
+import pandas as pd
+import argparse
 
 
 def get_args():
