@@ -141,6 +141,35 @@ def find_stop_codon_position(ref_seq, reference_transcript):
     return stop_codon_position
 
 
+def find_polyA_from_right(seq, read, polyA_length):
+    """
+    Search for poly(A) sequences from the right-hand side of the read.
+
+    This function searches for a poly(A) tail starting from the right-hand (3') side of the read.
+    If a poly(A) sequence is found, it returns the coordinate of the new poly(A) start.
+
+    Parameters:
+    seq (str): The read sequence.
+    read (pysam.AlignedSegment): The read from the BAM file.
+    polyA_length (int): Minimum length of poly(A) tail to consider.
+
+    Returns:
+    int: The new coordinate of the poly(A) start, or None if no right-hand poly(A) is found.
+    """
+    # Search for poly(A) stretch at the end of the sequence
+    right_match = re.search(r'(A{' + str(polyA_length) + ',})$', seq)
+    
+    if right_match:
+        # Calculate the start position of the poly(A) from the right
+        right_start_pos = len(seq) - len(right_match.group(0))
+        right_coordinate = read.reference_start + right_start_pos
+        logging.debug(f"Right-side polyA site found at position {right_start_pos} in read {read.query_name}")
+        return right_coordinate
+    else:
+        logging.debug(f"No polyA found on the right side of read {read.query_name}")
+        return None
+
+
 def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_length, group):
     """
     Extract poly(A) sites from a BAM file.
@@ -199,12 +228,13 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                     logging.debug(f"Read {read.query_name} sequence is not a string. Type: {type(seq)}")
                     continue
 
+                # Step 1: Look for polyA sequence after the stop codon
                 match = re.search(r'(A{' + str(polyA_length) + ',})', seq)
                 if match:
                     start_pos = match.start()
                     coordinate = read.reference_start + start_pos
 
-                    # If initial match is within CDS, search again after stop codon
+                    # Check if the initial match is before the stop codon, re-search if needed
                     if coordinate < stop_codon_position:
                         logging.debug(f"Initial polyA site within CDS for read {read.query_name}. Searching again after stop codon.")
                         match = re.search(r'(A{' + str(polyA_length) + ',})', seq[stop_codon_position - 
@@ -217,9 +247,22 @@ def extract_polyA_sites(bam_file, fasta_file, reference_transcripts, polyA_lengt
                         read_name = read.query_name
                         polyA_start = read.reference_start + start_pos
                         polyA_length_detected = len(match.group(0))
-                        chrom = read.reference_name
                         distance_to_stop = coordinate - stop_codon_position
+                        old_polyA_start = polyA_start
 
+                        # Sequence preceding polyA tail in the read
+                        pre_polyA_seq_from_read = seq[max(0, match.start() - distance_to_stop):match.start()]
+
+                        # Sequence preceding polyA tail from reference genome
+                        pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
+
+                        # Step 2: Call the new function to check for poly(A) from the right side
+                        right_coordinate = find_polyA_from_right(seq, read, polyA_length)
+                        
+                        # If a valid right-side polyA site is found and coordinates differ, update the start position
+                        if right_coordinate is not None and right_coordinate != coordinate:
+                            logging.info(f"Right-side poly(A) site found at different coordinate for read {read_name}. Updating poly(A) start position. from {polyA_start} to {right_coordinate}")
+                            polyA_start = right_coordinate
                         # Sequence from RNAseq read
                         pre_polyA_seq_from_read = seq[max(0, match.start() - distance_to_stop):match.start()]
 
