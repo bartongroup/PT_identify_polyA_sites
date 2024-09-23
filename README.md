@@ -215,7 +215,52 @@ The script logs its progress and important information to a log file specified b
 python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py --bam transcriptome_tests/test.bam --fasta transcriptome_tests/transcript_with_UTR.fa --polyA_length 7 --fdr 0.05 --log analysis.log --log-level INFO --output results.tsv --reference_transcript transcriptome_tests/transcript.fa
 ```
 
-# Genome version (not yet working)
+
+# Generating the test files and example bam file. 
+
+You can use the gffread tool from the gffread suite (part of the Cufflinks/gffcompare tools) to extract both the CDS (coding sequence) and the transcripts with UTRs from a GFF/GTF file. 
+```bash
+gffread input.gff -g genome.fa -x cds_output.fa -w transcripts_with_UTR_output.fa
+
+```
+
+## Map the FASTA sequences to the reference and convert to BAM directly
+```bash
+minimap2 -a -x sr -k 7 -w 1 -A 1 -B 2 -O 2,16 -E 4,1 -s 40 --secondary=no transcript_with_UTR.fa reads.fa | samtools view -b -o tmp.bam
+```
+
+## Sort the BAM file
+```bash
+samtools sort -o test.bam tmp.bam
+
+```
+
+## Index the sorted BAM file
+```bash
+samtools index test.bam
+```
+
+testing command
+
+```bash
+python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py --bam transcriptome_tests/test.bam --reference_transcript transcriptome_tests/transcript.fa --fasta transcriptome_tests/transcript_with_UTR.fa --group WT --output output.test
+
+```
+
+
+# extract_UTR_lengths_stop_to_polyA.py
+
+This is a script that perfomrs a similar task to the main one but JUST reports the data as 
+
+ transcript_id  read_name   distance_to_stop
+
+The the user can decide what to do with the data. 
+
+
+##################################
+
+
+# Genome version (not yet working) -  unlikely to take this further .. 
 
 ### Scripts Description
 1. identify_polyA/parse_gtf.py
@@ -251,35 +296,3 @@ Run the main script extract_polyA_sites.py with the following command-line argum
 python scripts/extract_polyA_sites.py --bam file1.bam file2.bam file3.bam --output polyA_sites.tsv --fasta reference.fasta --gtf annotations.gtf --groups WT WT WT MUT MUT MUT --fdr 0.05 --log script.log
 ```
 
-
-
-# Generating the test files and example bam file. 
-
-You can use the gffread tool from the gffread suite (part of the Cufflinks/gffcompare tools) to extract both the CDS (coding sequence) and the transcripts with UTRs from a GFF/GTF file. 
-```bash
-gffread input.gff -g genome.fa -x cds_output.fa -w transcripts_with_UTR_output.fa
-
-```
-
-## Map the FASTA sequences to the reference and convert to BAM directly
-```bash
-minimap2 -a -x sr -k 7 -w 1 -A 1 -B 2 -O 2,16 -E 4,1 -s 40 --secondary=no transcript_with_UTR.fa reads.fa | samtools view -b -o tmp.bam
-```
-
-## Sort the BAM file
-```bash
-samtools sort -o test.bam tmp.bam
-
-```
-
-## Index the sorted BAM file
-```bash
-samtools index test.bam
-```
-
-testing command
-
-```bash
-python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py --bam transcriptome_tests/test.bam --reference_transcript transcriptome_tests/transcript.fa --fasta transcriptome_tests/transcript_with_UTR.fa --group WT --output output.test
-
-```
