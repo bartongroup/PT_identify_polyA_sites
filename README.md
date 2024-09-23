@@ -54,6 +54,48 @@ in the parent directory run
 nose2
 ```
 
+# Purpose and Objective:
+The script is designed to identify polyadenylation (polyA) sites from RNA sequencing (RNA-seq) data, specifically from nanopore direct RNA sequencing. PolyA tails are important in RNA biology as they indicate the end of an mRNA transcript and play key roles in mRNA stability and degradation. By identifying where the polyA tail starts in reads aligned to reference transcripts, the script helps researchers understand the transcriptome's 3' untranslated regions (UTRs) and the locations of polyA sites.
+
+## How It Works:
+The script processes BAM files, which contain RNA-seq reads aligned to reference transcripts, and identifies polyA sites by scanning for stretches of adenine (A) residues. 
+
+It specifically looks for polyA tails that occur after the stop codon in the mRNA sequence, as polyA tails are generally located in the 3' UTR after the coding sequence. The script starts by identifying potential polyA sequences based on a user-defined minimum length of consecutive adenines (e.g., 7 or 10 As in a row). Additionally, to handle cases where the polyA stretch might appear on the right-hand side of the read, the script also looks for polyA sequences from the end of the read and updates the polyA start position if necessary.
+
+## The script extracts various information for each polyA site it detects:
+
+Read Name: The name of the read in which the polyA site was found.
+Transcript ID: The transcript to which the read was aligned.
+Genomic Coordinate: The genomic coordinate of the polyA start.
+PolyA Start: The starting position of the polyA site in the read.
+PolyA Length: The length of the polyA tail detected in the read.
+Pre-PolyA Sequence from Read: The sequence of nucleotides in the read just before the polyA tail starts.
+Pre-PolyA Sequence from Reference: The corresponding sequence from the reference genome or transcript that aligns to the pre-polyA region in the read.
+Distance to Stop Codon: The distance from the polyA site to the stop codon in the reference transcript.
+Why It’s Done:
+## Understanding where polyA tails occur is crucial for several reasons:
+
+Transcript Processing: The polyA tail is involved in the maturation and stability of mRNA. Identifying its position helps in understanding mRNA post-transcriptional modifications.
+UTR Annotation: PolyA sites generally occur in the 3' UTR of mRNAs, and their precise location can help researchers refine transcript annotations.
+Differences Between Conditions: In comparative studies (e.g., wild type vs mutant), polyA sites may shift or differ in length, which could have biological significance. The script allows researchers to collect polyA site data for further analysis and statistical comparison.
+Inputs:
+BAM Files (--bam): These files contain the RNA-seq reads aligned to a reference transcriptome.
+FASTA File for the Reference Genome (--fasta): This file contains the reference genome sequences in FASTA format.
+Reference Transcripts with UTRs (--reference_transcript): This FASTA file contains reference transcript sequences, including their untranslated regions (UTRs), which are crucial for detecting polyA sites after the stop codon.
+Groups (--groups): This allows specifying different experimental conditions (e.g., wild type and mutant) for polyA site comparison.
+PolyA Length (--polyA_length): The minimum number of consecutive adenines required to identify a polyA tail.
+Log Level (--log-level): Defines the logging verbosity for debugging purposes.
+Outputs:
+The script produces several output files in TSV format, which summarize the detected polyA sites:
+
+TSV File for PolyA Sites: A file listing all identified polyA sites, their genomic coordinates, and the corresponding details (e.g., pre-polyA sequences and distances to stop codons). The file is generated separately for different experimental groups (e.g., WT_output.tsv for wild type).
+Additional Analysis Files: If further analyses are run, such as statistical comparisons between groups, additional files can be produced, showing significant differences in polyA site locations.
+Why This Is Useful:
+This script is especially useful for researchers studying post-transcriptional regulation, mRNA decay, or alternative polyadenylation. By providing precise positions of polyA sites, researchers can investigate how mRNA stability and expression levels might be influenced under different conditions. Moreover, the script helps in understanding UTR dynamics and refining transcript annotations in various organisms or cell types.
+
+This modular and automated approach allows for a high-throughput analysis of polyA sites, reducing manual effort and ensuring consistent, reliable results across large datasets.
+
+
 ## file structure
 
 ```bash
@@ -176,18 +218,30 @@ python scripts/extract_polyA_sites.py --bam file1.bam file2.bam file3.bam --outp
 
 # Generating the test files and example bam file. 
 
+You can use the gffread tool from the gffread suite (part of the Cufflinks/gffcompare tools) to extract both the CDS (coding sequence) and the transcripts with UTRs from a GFF/GTF file. 
+```bash
+gffread input.gff -g genome.fa -x cds_output.fa -w transcripts_with_UTR_output.fa
+
+```
 
 ## Map the FASTA sequences to the reference and convert to BAM directly
-minimap2 -a -x sr -k 7 -w 1 -A 1 -B 2 -O 2,16 -E 4,1 -s 40 --secondary=no \
-transcript_with_UTR.fa reads.fa | samtools view -b -o tmp.bam
+```bash
+minimap2 -a -x sr -k 7 -w 1 -A 1 -B 2 -O 2,16 -E 4,1 -s 40 --secondary=no transcript_with_UTR.fa reads.fa | samtools view -b -o tmp.bam
+```
 
 ## Sort the BAM file
+```bash
 samtools sort -o test.bam tmp.bam
 
+```
+
 ## Index the sorted BAM file
+```bash
 samtools index test.bam
+```
 
 testing command
+
 ```bash
 python extract_polyA_sites_mapped_to_transcriptome_with_UTR.py --bam transcriptome_tests/test.bam --reference_transcript transcriptome_tests/transcript.fa --fasta transcriptome_tests/transcript_with_UTR.fa --group WT --output output.test
 
