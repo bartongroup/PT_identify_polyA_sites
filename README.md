@@ -101,14 +101,51 @@ This modular and automated approach allows for a high-throughput analysis of pol
 ```bash
 
 .
-├── identify_polyA
-│   ├── extract_stop_codon_positions.py
-│   ├── parse_gtf.py
-├── scripts
-│   ├── extract_polyA_sites.py
-├── tests
-│   ├── test_extract_stop_codon_positions.py
+├── LICENSE
+├── MUT_output.test
 ├── README.md
+├── analysis.log
+├── data
+├── extract_UTR_lengths_stop_to_polyA.py
+├── extract_polA_site.log
+├── extract_polyA_sites.py
+├── extract_polyA_sites_mapped_to_transcriptome_with_UTR.py
+├── identify_polyA
+│   ├── __pycache__
+│   │   ├── extract_polyA_sites.cpython-310.pyc
+│   │   ├── extract_stop_codon_positions.cpython-310.pyc
+│   │   ├── parse_gff_gft.cpython-310.pyc
+│   │   └── parse_gtf.cpython-310.pyc
+│   ├── extract_polyA_sites.py
+│   ├── extract_stop_codon_positions.py
+│   ├── parse_gff_gft.py
+│   └── parse_gtf.py
+├── script.log
+├── test_data
+│   ├── reads.fa
+│   ├── reads.fq
+│   ├── test.bam
+│   ├── test.bam.bai
+│   ├── test.genome.fasta
+│   ├── test.genome.fasta.fai
+│   ├── test.gtf
+│   └── transcript.fa
+├── tests
+│   ├── __pycache__
+│   │   ├── test_extract_polyA_sites.cpython-310.pyc
+│   │   ├── test_extract_stop_codon_positions.cpython-310.pyc
+│   │   └── test_parse_gtf.cpython-310.pyc
+│   ├── data
+│   ├── input
+│   ├── test_extract_polyA_sites.py
+│   ├── test_extract_stop_codon_positions.py
+│   └── test_parse_gtf.py
+└── transcriptome_tests
+    ├── reads.fa
+    ├── test.bam
+    ├── test.bam.bai
+    ├── transcript.fa
+    └── transcript_with_UTR.fa
 
 ```
 ### transcritpome approach (genome version is NOT WORKING YET!)
