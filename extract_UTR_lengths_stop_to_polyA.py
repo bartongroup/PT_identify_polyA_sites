@@ -100,6 +100,31 @@ def find_stop_codon_position(ref_seq, reference_transcript):
     return stop_codon_position
 
 
+def find_polyA_from_right(seq, polyA_length):
+    """
+    Search for poly(A) sequences from the right-hand side of the read.
+
+    This function searches for a poly(A) tail starting from the right-hand (3') side of the read.
+    If a poly(A) sequence is found, it returns the start position of the poly(A) tail in the read.
+
+    Parameters:
+    seq (str): The read sequence.
+    polyA_length (int): Minimum length of poly(A) tail to consider.
+
+    Returns:
+    int: The start position of the poly(A) tail in the read sequence.
+    """
+    # Search for poly(A) stretch at the end of the sequence
+    right_match = re.search(r'(A{' + str(polyA_length) + ',})$', seq)
+    
+    if right_match:
+        # Return the start position of the poly(A) within the read
+        return right_match.start()
+    else:
+        return None
+
+
+
 def extract_polyA_sites_with_distance(bam_file, fasta_file, reference_transcripts, 
                                       polyA_length, output_dir):
     """
@@ -159,6 +184,33 @@ def extract_polyA_sites_with_distance(bam_file, fasta_file, reference_transcript
                             read_name = read.query_name
                             distance_to_stop = coordinate - stop_codon_position
                             out_f.write(f"{transcript_id}\t{read_name}\t{distance_to_stop}\n")
+
+                        if match and coordinate >= stop_codon_position:
+                            read_name = read.query_name
+                            polyA_start = read.reference_start + start_pos
+                            polyA_length_detected = len(match.group(0))
+                            distance_to_stop = coordinate - stop_codon_position
+                            old_polyA_start = polyA_start
+                            # Step 2: Call the new function to check for poly(A) from the right side
+                            right_start_pos = find_polyA_from_right(seq, polyA_length)
+                        
+                            # If a valid right-side polyA site is found and positions differ, update the start position
+                            if right_start_pos is not None and right_start_pos != start_pos:
+                                logging.info(f"Right-side poly(A) site found at different position for read {read_name}. Updating poly(A) start position.")
+                                polyA_start = read.reference_start + right_start_pos
+                                coordinate = read.reference_start + right_start_pos  # Update the coordinate to the new polyA start
+                                distance_to_stop = coordinate - stop_codon_position  # Recalculate distance to stop
+
+                                # Update the sequence preceding the polyA tail from the read based on the new right-hand polyA start
+                                pre_polyA_seq_from_read = seq[max(0, right_start_pos - distance_to_stop):right_start_pos]
+
+                                # Update the sequence preceding the polyA tail from reference genome
+                                pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
+
+                            out_f.write(f"{transcript_id}\t{read_name}\t{distance_to_stop}\n")
+
+                        # Sequence from reference genome
+                        pre_polyA_seq_from_ref = str(fasta[transcript_id].seq[stop_codon_position:coordinate]) if distance_to_stop > 0 else ""
 
     bam.close()
     logging.info(f"Processed {bam_file} and saved results to {output_file}")
